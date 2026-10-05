@@ -1,0 +1,23 @@
+@"
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+
+generated/
+backend/generated/
+
+.vscode/
+.idea/
+
+.DS_Store
+
+backend/.agents/
+backend/.claude/
+backend/.windsurf/
+"@ | Set-Content .gitignore

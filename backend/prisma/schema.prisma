@@ -1,0 +1,288 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model approvals {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  request_id  String   @db.Uuid
+  approver_id String   @db.Uuid
+  status      String   @default("pending") @db.VarChar(20)
+  comment     String?
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+  updated_at  DateTime @default(now()) @db.Timestamp(6)
+  users       users    @relation(fields: [approver_id], references: [id], onUpdate: NoAction, map: "fk_approvals_approver")
+  requests    requests @relation(fields: [request_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_approvals_request")
+
+  @@index([approver_id], map: "idx_approvals_approver_id")
+  @@index([request_id], map: "idx_approvals_request_id")
+  @@index([status], map: "idx_approvals_status")
+}
+
+model audit_logs {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String        @db.Uuid
+  user_id         String?       @db.Uuid
+  action          String        @db.VarChar(100)
+  entity_type     String        @db.VarChar(100)
+  entity_id       String?       @db.Uuid
+  metadata        Json          @default("{}")
+  created_at      DateTime      @default(now()) @db.Timestamp(6)
+  organizations   organizations @relation(fields: [organization_id], references: [id], onUpdate: NoAction, map: "fk_audit_logs_organization")
+  users           users?        @relation(fields: [user_id], references: [id], onUpdate: NoAction, map: "fk_audit_logs_user")
+
+  @@index([created_at], map: "idx_audit_logs_created_at")
+  @@index([entity_type, entity_id], map: "idx_audit_logs_entity")
+  @@index([organization_id], map: "idx_audit_logs_organization_id")
+  @@index([user_id], map: "idx_audit_logs_user_id")
+}
+
+model departments {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id      String                 @db.Uuid
+  name                 String                 @db.VarChar(100)
+  description          String?
+  organizations        organizations          @relation(fields: [organization_id], references: [id], onUpdate: NoAction, map: "fk_departments_organization")
+  organization_members organization_members[]
+
+  @@unique([organization_id, name], map: "uq_departments_organization_name")
+  @@index([organization_id], map: "idx_departments_organization_id")
+}
+
+model notifications {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  type       String   @db.VarChar(50)
+  title      String   @db.VarChar(255)
+  message    String
+  is_read    Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_notifications_user")
+
+  @@index([user_id], map: "idx_notifications_user_id")
+  @@index([user_id, is_read], map: "idx_notifications_user_unread")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model organization_members {
+  id                         String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id            String                 @db.Uuid
+  user_id                    String                 @db.Uuid
+  role_id                    String                 @db.Uuid
+  department_id              String?                @db.Uuid
+  manager_id                 String?                @db.Uuid
+  status                     String                 @default("active") @db.VarChar(30)
+  joined_at                  DateTime               @default(now()) @db.Timestamp(6)
+  departments                departments?           @relation(fields: [department_id], references: [id], onUpdate: NoAction, map: "fk_members_department")
+  organization_members       organization_members?  @relation("organization_membersToorganization_members", fields: [manager_id], references: [id], onUpdate: NoAction, map: "fk_members_manager")
+  other_organization_members organization_members[] @relation("organization_membersToorganization_members")
+  organizations              organizations          @relation(fields: [organization_id], references: [id], onUpdate: NoAction, map: "fk_members_organization")
+  roles                      roles                  @relation(fields: [role_id], references: [id], onUpdate: NoAction, map: "fk_members_role")
+  users                      users                  @relation(fields: [user_id], references: [id], onUpdate: NoAction, map: "fk_members_user")
+
+  @@unique([organization_id, user_id], map: "uq_members_organization_user")
+  @@index([department_id], map: "idx_members_department_id")
+  @@index([manager_id], map: "idx_members_manager_id")
+  @@index([organization_id], map: "idx_members_organization_id")
+  @@index([role_id], map: "idx_members_role_id")
+  @@index([user_id], map: "idx_members_user_id")
+}
+
+model organizations {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                 String                 @db.VarChar(255)
+  email                String?                @db.VarChar(255)
+  phone                String?                @db.VarChar(50)
+  website              String?                @db.VarChar(255)
+  industry             String?                @db.VarChar(100)
+  size                 String?                @db.VarChar(50)
+  created_at           DateTime               @default(now()) @db.Timestamp(6)
+  updated_at           DateTime               @default(now()) @db.Timestamp(6)
+  audit_logs           audit_logs[]
+  departments          departments[]
+  organization_members organization_members[]
+  projects             projects[]
+  requests             requests[]
+  roles                roles[]
+  workflows            workflows[]
+}
+
+model permissions {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String             @unique @db.VarChar(150)
+  description      String?
+  role_permissions role_permissions[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model projects {
+  id                               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id                  String        @db.Uuid
+  name                             String        @db.VarChar(255)
+  description                      String?
+  created_by                       String        @db.Uuid
+  manager_id                       String?       @db.Uuid
+  status                           String        @default("planned") @db.VarChar(30)
+  start_date                       DateTime?     @db.Date
+  deadline                         DateTime?     @db.Date
+  created_at                       DateTime      @default(now()) @db.Timestamp(6)
+  updated_at                       DateTime      @default(now()) @db.Timestamp(6)
+  users_projects_created_byTousers users         @relation("projects_created_byTousers", fields: [created_by], references: [id], onUpdate: NoAction, map: "fk_projects_created_by")
+  users_projects_manager_idTousers users?        @relation("projects_manager_idTousers", fields: [manager_id], references: [id], onUpdate: NoAction, map: "fk_projects_manager")
+  organizations                    organizations @relation(fields: [organization_id], references: [id], onUpdate: NoAction, map: "fk_projects_organization")
+  tasks                            tasks[]
+
+  @@index([created_by], map: "idx_projects_created_by")
+  @@index([manager_id], map: "idx_projects_manager_id")
+  @@index([organization_id], map: "idx_projects_organization_id")
+}
+
+model requests {
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id  String          @db.Uuid
+  workflow_id      String          @db.Uuid
+  created_by       String          @db.Uuid
+  current_state_id String          @db.Uuid
+  title            String          @db.VarChar(255)
+  description      String?
+  data             Json            @default("{}")
+  created_at       DateTime        @default(now()) @db.Timestamp(6)
+  updated_at       DateTime        @default(now()) @db.Timestamp(6)
+  approvals        approvals[]
+  users            users           @relation(fields: [created_by], references: [id], onUpdate: NoAction, map: "fk_requests_created_by")
+  workflow_states  workflow_states @relation(fields: [current_state_id], references: [id], onUpdate: NoAction, map: "fk_requests_current_state")
+  organizations    organizations   @relation(fields: [organization_id], references: [id], onUpdate: NoAction, map: "fk_requests_organization")
+  workflows        workflows       @relation(fields: [workflow_id], references: [id], onUpdate: NoAction, map: "fk_requests_workflow")
+
+  @@index([created_by], map: "idx_requests_created_by")
+  @@index([current_state_id], map: "idx_requests_current_state_id")
+  @@index([organization_id], map: "idx_requests_organization_id")
+  @@index([workflow_id], map: "idx_requests_workflow_id")
+}
+
+model role_permissions {
+  role_id       String      @db.Uuid
+  permission_id String      @db.Uuid
+  permissions   permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_role_permissions_permission")
+  roles         roles       @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_role_permissions_role")
+
+  @@id([role_id, permission_id], map: "pk_role_permissions")
+  @@index([permission_id], map: "idx_role_permissions_permission_id")
+}
+
+model roles {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id      String                 @db.Uuid
+  name                 String                 @db.VarChar(100)
+  description          String?
+  created_at           DateTime               @default(now()) @db.Timestamp(6)
+  organization_members organization_members[]
+  role_permissions     role_permissions[]
+  organizations        organizations          @relation(fields: [organization_id], references: [id], onUpdate: NoAction, map: "fk_roles_organization")
+
+  @@unique([organization_id, name], map: "uq_roles_organization_name")
+  @@index([organization_id], map: "idx_roles_organization_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model tasks {
+  id                             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id                     String    @db.Uuid
+  created_by                     String    @db.Uuid
+  assigned_to                    String?   @db.Uuid
+  title                          String    @db.VarChar(255)
+  description                    String?
+  status                         String    @default("todo") @db.VarChar(30)
+  priority                       String    @default("medium") @db.VarChar(20)
+  deadline                       DateTime? @db.Timestamp(6)
+  created_at                     DateTime  @default(now()) @db.Timestamp(6)
+  updated_at                     DateTime  @default(now()) @db.Timestamp(6)
+  users_tasks_assigned_toTousers users?    @relation("tasks_assigned_toTousers", fields: [assigned_to], references: [id], onUpdate: NoAction, map: "fk_tasks_assigned_to")
+  users_tasks_created_byTousers  users     @relation("tasks_created_byTousers", fields: [created_by], references: [id], onUpdate: NoAction, map: "fk_tasks_created_by")
+  projects                       projects  @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_tasks_project")
+
+  @@index([assigned_to], map: "idx_tasks_assigned_to")
+  @@index([created_by], map: "idx_tasks_created_by")
+  @@index([project_id], map: "idx_tasks_project_id")
+  @@index([status], map: "idx_tasks_status")
+}
+
+model users {
+  id                                  String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                                String                 @db.VarChar(255)
+  email                               String                 @unique @db.VarChar(255)
+  password_hash                       String
+  created_at                          DateTime               @default(now()) @db.Timestamp(6)
+  updated_at                          DateTime               @default(now()) @db.Timestamp(6)
+  approvals                           approvals[]
+  audit_logs                          audit_logs[]
+  notifications                       notifications[]
+  organization_members                organization_members[]
+  projects_projects_created_byTousers projects[]             @relation("projects_created_byTousers")
+  projects_projects_manager_idTousers projects[]             @relation("projects_manager_idTousers")
+  requests                            requests[]
+  tasks_tasks_assigned_toTousers      tasks[]                @relation("tasks_assigned_toTousers")
+  tasks_tasks_created_byTousers       tasks[]                @relation("tasks_created_byTousers")
+  workflows                           workflows[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model workflow_states {
+  id                                                                       String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workflow_id                                                              String                 @db.Uuid
+  name                                                                     String                 @db.VarChar(100)
+  position                                                                 Int
+  is_initial                                                               Boolean                @default(false)
+  is_final                                                                 Boolean                @default(false)
+  requests                                                                 requests[]
+  workflows                                                                workflows              @relation(fields: [workflow_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_workflow_states_workflow")
+  workflow_transitions_workflow_transitions_from_state_idToworkflow_states workflow_transitions[] @relation("workflow_transitions_from_state_idToworkflow_states")
+  workflow_transitions_workflow_transitions_to_state_idToworkflow_states   workflow_transitions[] @relation("workflow_transitions_to_state_idToworkflow_states")
+
+  @@unique([workflow_id, name], map: "uq_workflow_states_name")
+  @@unique([workflow_id, position], map: "uq_workflow_states_position")
+  @@index([workflow_id], map: "idx_workflow_states_workflow_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model workflow_transitions {
+  id                                                                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workflow_id                                                         String          @db.Uuid
+  from_state_id                                                       String          @db.Uuid
+  to_state_id                                                         String          @db.Uuid
+  name                                                                String          @db.VarChar(100)
+  created_at                                                          DateTime        @default(now()) @db.Timestamp(6)
+  workflow_states_workflow_transitions_from_state_idToworkflow_states workflow_states @relation("workflow_transitions_from_state_idToworkflow_states", fields: [from_state_id], references: [id], onUpdate: NoAction, map: "fk_transitions_from_state")
+  workflow_states_workflow_transitions_to_state_idToworkflow_states   workflow_states @relation("workflow_transitions_to_state_idToworkflow_states", fields: [to_state_id], references: [id], onUpdate: NoAction, map: "fk_transitions_to_state")
+  workflows                                                           workflows       @relation(fields: [workflow_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_transitions_workflow")
+
+  @@unique([workflow_id, from_state_id, to_state_id], map: "uq_workflow_transition")
+  @@index([from_state_id], map: "idx_transitions_from_state")
+  @@index([to_state_id], map: "idx_transitions_to_state")
+  @@index([workflow_id], map: "idx_transitions_workflow_id")
+}
+
+model workflows {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id      String                 @db.Uuid
+  name                 String                 @db.VarChar(255)
+  description          String?
+  entity_type          String                 @db.VarChar(100)
+  created_by           String                 @db.Uuid
+  created_at           DateTime               @default(now()) @db.Timestamp(6)
+  updated_at           DateTime               @default(now()) @db.Timestamp(6)
+  requests             requests[]
+  workflow_states      workflow_states[]
+  workflow_transitions workflow_transitions[]
+  users                users                  @relation(fields: [created_by], references: [id], onUpdate: NoAction, map: "fk_workflows_created_by")
+  organizations        organizations          @relation(fields: [organization_id], references: [id], onUpdate: NoAction, map: "fk_workflows_organization")
+
+  @@unique([organization_id, name], map: "uq_workflows_organization_name")
+  @@index([created_by], map: "idx_workflows_created_by")
+  @@index([organization_id], map: "idx_workflows_organization_id")
+}
