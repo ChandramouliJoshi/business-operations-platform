@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   Post,
   Req,
@@ -31,5 +32,13 @@ export class MembersController {
       body.roleId,
       body.departmentId,
     );
+  }
+
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  async getMembers(
+    @Param('organizationId') organizationId: string,
+  ) {
+    return this.membersService.getMembers(organizationId);
   }
 }
