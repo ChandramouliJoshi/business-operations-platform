@@ -39,4 +39,26 @@ export class RolesController {
   ) {
     return this.rolesService.getRoles(organizationId);
   }
+
+  @Post(':roleId/permissions')
+  @UseGuards(JwtAuthGuard)
+  async assignPermission(
+    @Param('roleId') roleId: string,
+    @Body()
+    body: {
+      permissionId: string;
+    },
+  ) {
+    return this.rolesService.assignPermission(
+      roleId,
+      body.permissionId,
+    );
+  }
+  @Get(':roleId/permissions')
+  @UseGuards(JwtAuthGuard)
+  async getRolePermissions(
+    @Param('roleId') roleId: string,
+  ) {
+    return this.rolesService.getRolePermissions(roleId);
+  }
 }

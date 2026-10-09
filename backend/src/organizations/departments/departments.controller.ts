@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 import { DepartmentsService } from './departments.service.js';
 import { JwtAuthGuard } from '../../auth/jwt/jwt.guard.js';
+import { RequirePermission } from '../permissions/permissions.decorator.js';
+import { PermissionsGuard } from '../permissions/permissions.guard.js';
 
 @Controller('organizations/:organizationId/departments')
 export class DepartmentsController {

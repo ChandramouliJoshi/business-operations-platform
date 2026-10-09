@@ -64,4 +64,66 @@ export class RolesService {
       },
     });
   }
+
+  async assignPermission(
+    roleId: string,
+    permissionId: string,
+  ) {
+    const role = await this.prisma.roles.findUnique({
+      where: { id: roleId },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    const permission = await this.prisma.permissions.findUnique({
+      where: { id: permissionId },
+    });
+
+    if (!permission) {
+      throw new NotFoundException('Permission not found');
+    }
+
+    const existingMapping =
+      await this.prisma.role_permissions.findUnique({
+        where: {
+          role_id_permission_id: {
+            role_id: roleId,
+            permission_id: permissionId,
+          },
+        },
+      });
+
+    if (existingMapping) {
+      throw new ConflictException(
+        'Permission is already assigned to this role',
+      );
+    }
+
+    return this.prisma.role_permissions.create({
+      data: {
+        role_id: roleId,
+        permission_id: permissionId,
+      },
+    });
+  }
+  async getRolePermissions(roleId: string) {
+    const role = await this.prisma.roles.findUnique({
+      where: { id: roleId },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    return this.prisma.role_permissions.findMany({
+      where: {
+        role_id: roleId,
+      },
+      include: {
+        permissions: true,
+      },
+    });
+  }
 }

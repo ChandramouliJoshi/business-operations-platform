@@ -10,6 +10,7 @@ import { RolesController } from './roles/roles.controller.js';
 import { RolesService } from './roles/roles.service.js';
 import { PermissionsController } from './permissions/permissions.controller.js';
 import { PermissionsService } from './permissions/permissions.service.js';
+import { PermissionsGuard } from './permissions/permissions.guard.js';
 
 @Module({
   imports: [PrismaModule],
@@ -26,6 +27,7 @@ import { PermissionsService } from './permissions/permissions.service.js';
     DepartmentsService,
     RolesService,
     PermissionsService,
+    PermissionsGuard,
   ],
 })
 export class OrganizationsModule {}
