@@ -6,6 +6,8 @@ import { MembersService } from './members/members.service.js';
 import { DepartmentsController } from './departments/departments.controller.js';
 import { DepartmentsService } from './departments/departments.service.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
+import { RolesController } from './roles/roles.controller.js';
+import { RolesService } from './roles/roles.service.js';
 
 @Module({
   imports: [PrismaModule],
@@ -13,11 +15,13 @@ import { PrismaModule } from '../prisma/prisma.module.js';
     OrganizationsController,
     MembersController,
     DepartmentsController,
+    RolesController,
   ],
   providers: [
     OrganizationsService,
     MembersService,
     DepartmentsService,
+    RolesService,
   ],
 })
 export class OrganizationsModule {}
