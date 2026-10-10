@@ -18,7 +18,8 @@ export class DepartmentsController {
   ) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('departments.create')
   async createDepartment(
     @Param('organizationId') organizationId: string,
     @Body()
