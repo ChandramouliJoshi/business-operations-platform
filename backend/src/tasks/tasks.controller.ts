@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -53,5 +54,31 @@ export class TasksController {
     @Param('projectId') projectId: string,
   ) {
     return this.tasksService.getTasks(projectId);
+  }
+
+  @Patch(':taskId')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('tasks.update')
+  async updateTask(
+    @Param('taskId') taskId: string,
+    @Body()
+    body: {
+      title?: string;
+      description?: string;
+      assignedTo?: string;
+      status?: string;
+      priority?: string;
+      deadline?: string;
+    },
+  ) {
+    return this.tasksService.updateTask(
+      taskId,
+      body.title,
+      body.description,
+      body.assignedTo,
+      body.status,
+      body.priority,
+      body.deadline,
+    );
   }
 }
