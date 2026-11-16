@@ -1,6 +1,8 @@
+
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -79,6 +81,19 @@ export class TasksController {
       body.status,
       body.priority,
       body.deadline,
+    );
+  }
+
+  @Delete(':taskId')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('tasks.delete')
+  async deleteTask(
+    @Param('taskId') taskId: string,
+    @Param('projectId') projectId: string,
+  ) {
+    return this.tasksService.deleteTask(
+      taskId,
+      projectId,
     );
   }
 }

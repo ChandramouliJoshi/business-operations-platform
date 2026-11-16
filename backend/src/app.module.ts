@@ -7,6 +7,8 @@ import { AuthModule } from './auth/auth.module.js';
 import { OrganizationsModule } from './organizations/organizations.module.js';
 import { ProjectsModule } from './projects/projects.module.js';
 import { TasksModule } from './tasks/tasks.module.js';
+import { WorkflowsModule } from './workflows/workflows.module.js';
+import { WorkflowStatesModule } from './workflow-states/workflow-states.module.js';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { TasksModule } from './tasks/tasks.module.js';
     OrganizationsModule,
     ProjectsModule,
     TasksModule,
+    WorkflowsModule,
+    WorkflowStatesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
