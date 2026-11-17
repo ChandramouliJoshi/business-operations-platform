@@ -9,6 +9,7 @@ import { ProjectsModule } from './projects/projects.module.js';
 import { TasksModule } from './tasks/tasks.module.js';
 import { WorkflowsModule } from './workflows/workflows.module.js';
 import { WorkflowStatesModule } from './workflow-states/workflow-states.module.js';
+import { WorkflowTransitionsModule } from './workflow-transitions/workflow-transitions.module.js';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { WorkflowStatesModule } from './workflow-states/workflow-states.module.j
     TasksModule,
     WorkflowsModule,
     WorkflowStatesModule,
+    WorkflowTransitionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
