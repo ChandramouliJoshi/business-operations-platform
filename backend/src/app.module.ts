@@ -10,6 +10,9 @@ import { TasksModule } from './tasks/tasks.module.js';
 import { WorkflowsModule } from './workflows/workflows.module.js';
 import { WorkflowStatesModule } from './workflow-states/workflow-states.module.js';
 import { WorkflowTransitionsModule } from './workflow-transitions/workflow-transitions.module.js';
+import { RequestsModule } from './requests/requests.module.js';
+import { ApprovalsModule } from './approvals/approvals.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 
 @Module({
   imports: [
@@ -24,6 +27,9 @@ import { WorkflowTransitionsModule } from './workflow-transitions/workflow-trans
     WorkflowsModule,
     WorkflowStatesModule,
     WorkflowTransitionsModule,
+    RequestsModule,
+    ApprovalsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
