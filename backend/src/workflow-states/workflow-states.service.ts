@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateWorkflowStateDto } from './dto/create-workflow-state.dto.js';
 import { UpdateWorkflowStateDto } from './dto/update-workflow-state.dto.js';
@@ -25,7 +26,9 @@ export class WorkflowStatesService {
     });
 
     if (!workflow) {
-      throw new NotFoundException('Workflow not found in this organization');
+      throw new NotFoundException(
+        'Workflow not found in this organization',
+      );
     }
 
     return workflow;
@@ -51,6 +54,7 @@ export class WorkflowStatesService {
   async createState(
     organizationId: string,
     workflowId: string,
+    userId: string,
     dto: CreateWorkflowStateDto,
   ) {
     await this.validateWorkflow(organizationId, workflowId);
@@ -65,7 +69,7 @@ export class WorkflowStatesService {
           });
         }
 
-        return tx.workflow_states.create({
+        const state = await tx.workflow_states.create({
           data: {
             workflow_id: workflowId,
             name: dto.name,
@@ -74,6 +78,26 @@ export class WorkflowStatesService {
             is_final: dto.is_final ?? false,
           },
         });
+
+        // Record the audit event in the same transaction.
+        await tx.audit_logs.create({
+          data: {
+            organization_id: organizationId,
+            user_id: userId,
+            action: 'workflow_state.created',
+            entity_type: 'workflow_state',
+            entity_id: state.id,
+            metadata: {
+              workflow_id: workflowId,
+              name: state.name,
+              position: state.position,
+              is_initial: state.is_initial,
+              is_final: state.is_final,
+            },
+          },
+        });
+
+        return state;
       });
     } catch (error) {
       this.handleDatabaseError(error);
@@ -81,7 +105,10 @@ export class WorkflowStatesService {
   }
 
   // GET ALL STATES FOR A WORKFLOW
-  async getStates(organizationId: string, workflowId: string) {
+  async getStates(
+    organizationId: string,
+    workflowId: string,
+  ) {
     await this.validateWorkflow(organizationId, workflowId);
 
     return this.prisma.workflow_states.findMany({
@@ -95,23 +122,24 @@ export class WorkflowStatesService {
     organizationId: string,
     workflowId: string,
     stateId: string,
+    userId: string,
     dto: UpdateWorkflowStateDto,
   ) {
     await this.validateWorkflow(organizationId, workflowId);
 
-    const state = await this.prisma.workflow_states.findFirst({
-      where: {
-        id: stateId,
-        workflow_id: workflowId,
-      },
-    });
-
-    if (!state) {
-      throw new NotFoundException('Workflow state not found');
-    }
-
     try {
       return await this.prisma.$transaction(async (tx) => {
+        const previousState = await tx.workflow_states.findFirst({
+          where: {
+            id: stateId,
+            workflow_id: workflowId,
+          },
+        });
+
+        if (!previousState) {
+          throw new NotFoundException('Workflow state not found');
+        }
+
         // If this state becomes the initial state,
         // unset the previous initial state first.
         if (dto.is_initial === true) {
@@ -124,7 +152,7 @@ export class WorkflowStatesService {
           });
         }
 
-        return tx.workflow_states.update({
+        const updatedState = await tx.workflow_states.update({
           where: { id: stateId },
           data: {
             name: dto.name,
@@ -133,6 +161,39 @@ export class WorkflowStatesService {
             is_final: dto.is_final,
           },
         });
+
+        const updatedFields = Object.entries(dto)
+          .filter(([, value]) => value !== undefined)
+          .map(([key]) => key);
+
+        // Record the audit event in the same transaction.
+        await tx.audit_logs.create({
+          data: {
+            organization_id: organizationId,
+            user_id: userId,
+            action: 'workflow_state.updated',
+            entity_type: 'workflow_state',
+            entity_id: stateId,
+            metadata: {
+              workflow_id: workflowId,
+              updated_fields: updatedFields,
+              previous_state: {
+                name: previousState.name,
+                position: previousState.position,
+                is_initial: previousState.is_initial,
+                is_final: previousState.is_final,
+              },
+              new_state: {
+                name: updatedState.name,
+                position: updatedState.position,
+                is_initial: updatedState.is_initial,
+                is_final: updatedState.is_final,
+              },
+            },
+          },
+        });
+
+        return updatedState;
       });
     } catch (error) {
       this.handleDatabaseError(error);
@@ -144,55 +205,76 @@ export class WorkflowStatesService {
     organizationId: string,
     workflowId: string,
     stateId: string,
+    userId: string,
   ) {
     await this.validateWorkflow(organizationId, workflowId);
 
-    const state = await this.prisma.workflow_states.findFirst({
-      where: {
-        id: stateId,
-        workflow_id: workflowId,
-      },
-    });
-
-    if (!state) {
-      throw new NotFoundException('Workflow state not found');
-    }
-
-    // A state currently used by a request cannot be deleted.
-    const existingRequest = await this.prisma.requests.findFirst({
-      where: { current_state_id: stateId },
-    });
-
-    if (existingRequest) {
-      throw new ConflictException(
-        'Cannot delete this state because it is being used by a request',
-      );
-    }
-
-    // A state referenced by a transition cannot be deleted.
-    const existingTransition =
-      await this.prisma.workflow_transitions.findFirst({
+    return this.prisma.$transaction(async (tx) => {
+      const state = await tx.workflow_states.findFirst({
         where: {
+          id: stateId,
           workflow_id: workflowId,
-          OR: [
-            { from_state_id: stateId },
-            { to_state_id: stateId },
-          ],
         },
       });
 
-    if (existingTransition) {
-      throw new ConflictException(
-        'Cannot delete this state because it is used by a workflow transition',
-      );
-    }
+      if (!state) {
+        throw new NotFoundException('Workflow state not found');
+      }
 
-    await this.prisma.workflow_states.delete({
-      where: { id: stateId },
+      // A state currently used by a request cannot be deleted.
+      const existingRequest = await tx.requests.findFirst({
+        where: { current_state_id: stateId },
+      });
+
+      if (existingRequest) {
+        throw new ConflictException(
+          'Cannot delete this state because it is being used by a request',
+        );
+      }
+
+      // A state referenced by a transition cannot be deleted.
+      const existingTransition =
+        await tx.workflow_transitions.findFirst({
+          where: {
+            workflow_id: workflowId,
+            OR: [
+              { from_state_id: stateId },
+              { to_state_id: stateId },
+            ],
+          },
+        });
+
+      if (existingTransition) {
+        throw new ConflictException(
+          'Cannot delete this state because it is used by a workflow transition',
+        );
+      }
+
+      // Record the audit event before deleting the state.
+      await tx.audit_logs.create({
+        data: {
+          organization_id: organizationId,
+          user_id: userId,
+          action: 'workflow_state.deleted',
+          entity_type: 'workflow_state',
+          entity_id: stateId,
+          metadata: {
+            workflow_id: workflowId,
+            name: state.name,
+            position: state.position,
+            is_initial: state.is_initial,
+            is_final: state.is_final,
+          },
+        },
+      });
+
+      await tx.workflow_states.delete({
+        where: { id: stateId },
+      });
+
+      return {
+        message: 'Workflow state deleted successfully',
+      };
     });
-
-    return {
-      message: 'Workflow state deleted successfully',
-    };
   }
 }
