@@ -1,3 +1,4 @@
+
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -36,7 +37,24 @@ export class OrganizationsService {
         },
       });
 
-      // 3. Add the creator as an organization member
+      // 3. Retrieve all registered global permissions
+      const permissions = await tx.permissions.findMany({
+        select: {
+          id: true,
+        },
+      });
+
+      // 4. Assign all permissions to the Owner role
+      if (permissions.length > 0) {
+        await tx.role_permissions.createMany({
+          data: permissions.map((permission) => ({
+            role_id: ownerRole.id,
+            permission_id: permission.id,
+          })),
+        });
+      }
+
+      // 5. Add the creator as an active organization member
       await tx.organization_members.create({
         data: {
           organization_id: organization.id,

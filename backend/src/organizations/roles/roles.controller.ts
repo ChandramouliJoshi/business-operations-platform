@@ -1,3 +1,4 @@
+
 import {
   Body,
   Controller,
@@ -8,15 +9,18 @@ import {
 } from '@nestjs/common';
 import { RolesService } from './roles.service.js';
 import { JwtAuthGuard } from '../../auth/jwt/jwt.guard.js';
+import { PermissionsGuard } from '../permissions/permissions.guard.js';
+import { RequirePermission } from '../permissions/permissions.decorator.js';
 
 @Controller('organizations/:organizationId/roles')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class RolesController {
   constructor(
     private readonly rolesService: RolesService,
   ) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @RequirePermission('roles.create')
   async createRole(
     @Param('organizationId') organizationId: string,
     @Body()
@@ -33,7 +37,7 @@ export class RolesController {
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard)
+  @RequirePermission('roles.view')
   async getRoles(
     @Param('organizationId') organizationId: string,
   ) {
@@ -41,8 +45,9 @@ export class RolesController {
   }
 
   @Post(':roleId/permissions')
-  @UseGuards(JwtAuthGuard)
+  @RequirePermission('roles.permissions.assign')
   async assignPermission(
+    @Param('organizationId') organizationId: string,
     @Param('roleId') roleId: string,
     @Body()
     body: {
@@ -50,15 +55,21 @@ export class RolesController {
     },
   ) {
     return this.rolesService.assignPermission(
+      organizationId,
       roleId,
       body.permissionId,
     );
   }
+
   @Get(':roleId/permissions')
-  @UseGuards(JwtAuthGuard)
+  @RequirePermission('roles.permissions.view')
   async getRolePermissions(
+    @Param('organizationId') organizationId: string,
     @Param('roleId') roleId: string,
   ) {
-    return this.rolesService.getRolePermissions(roleId);
+    return this.rolesService.getRolePermissions(
+      organizationId,
+      roleId,
+    );
   }
 }

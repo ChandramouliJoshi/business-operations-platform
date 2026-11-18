@@ -1,3 +1,4 @@
+
 import {
   ConflictException,
   Injectable,
@@ -37,13 +38,28 @@ export class RolesService {
       );
     }
 
-    return this.prisma.roles.create({
-      data: {
-        organization_id: organizationId,
-        name,
-        description,
-      },
-    });
+    try {
+      return await this.prisma.roles.create({
+        data: {
+          organization_id: organizationId,
+          name,
+          description,
+        },
+      });
+    } catch (error: unknown) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'Role already exists in this organization',
+        );
+      }
+
+      throw error;
+    }
   }
 
   async getRoles(organizationId: string) {
@@ -66,15 +82,21 @@ export class RolesService {
   }
 
   async assignPermission(
+    organizationId: string,
     roleId: string,
     permissionId: string,
   ) {
-    const role = await this.prisma.roles.findUnique({
-      where: { id: roleId },
+    const role = await this.prisma.roles.findFirst({
+      where: {
+        id: roleId,
+        organization_id: organizationId,
+      },
     });
 
     if (!role) {
-      throw new NotFoundException('Role not found');
+      throw new NotFoundException(
+        'Role not found in this organization',
+      );
     }
 
     const permission = await this.prisma.permissions.findUnique({
@@ -85,36 +107,44 @@ export class RolesService {
       throw new NotFoundException('Permission not found');
     }
 
-    const existingMapping =
-      await this.prisma.role_permissions.findUnique({
-        where: {
-          role_id_permission_id: {
-            role_id: roleId,
-            permission_id: permissionId,
-          },
+    try {
+      return await this.prisma.role_permissions.create({
+        data: {
+          role_id: roleId,
+          permission_id: permissionId,
         },
       });
+    } catch (error: unknown) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'Permission is already assigned to this role',
+        );
+      }
 
-    if (existingMapping) {
-      throw new ConflictException(
-        'Permission is already assigned to this role',
-      );
+      throw error;
     }
-
-    return this.prisma.role_permissions.create({
-      data: {
-        role_id: roleId,
-        permission_id: permissionId,
-      },
-    });
   }
-  async getRolePermissions(roleId: string) {
-    const role = await this.prisma.roles.findUnique({
-      where: { id: roleId },
+
+  async getRolePermissions(
+    organizationId: string,
+    roleId: string,
+  ) {
+    const role = await this.prisma.roles.findFirst({
+      where: {
+        id: roleId,
+        organization_id: organizationId,
+      },
     });
 
     if (!role) {
-      throw new NotFoundException('Role not found');
+      throw new NotFoundException(
+        'Role not found in this organization',
+      );
     }
 
     return this.prisma.role_permissions.findMany({
@@ -123,6 +153,11 @@ export class RolesService {
       },
       include: {
         permissions: true,
+      },
+      orderBy: {
+        permissions: {
+          name: 'asc',
+        },
       },
     });
   }
