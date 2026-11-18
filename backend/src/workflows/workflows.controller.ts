@@ -33,7 +33,7 @@ export class WorkflowsController {
   async createWorkflow(
     @Param('organizationId') organizationId: string,
     @Body() body: CreateWorkflowDto,
-    @Req() req: any,
+    @Req() req: { user: { userId: string } },
   ) {
     return this.workflowsService.createWorkflow(
       organizationId,
@@ -75,10 +75,12 @@ export class WorkflowsController {
     @Param('organizationId') organizationId: string,
     @Param('workflowId') workflowId: string,
     @Body() body: UpdateWorkflowDto,
+    @Req() req: { user: { userId: string } },
   ) {
     return this.workflowsService.updateWorkflow(
       organizationId,
       workflowId,
+      req.user.userId,
       body.name,
       body.description,
       body.entity_type,
@@ -91,10 +93,12 @@ export class WorkflowsController {
   async deleteWorkflow(
     @Param('organizationId') organizationId: string,
     @Param('workflowId') workflowId: string,
+    @Req() req: { user: { userId: string } },
   ) {
     return this.workflowsService.deleteWorkflow(
       organizationId,
       workflowId,
+      req.user.userId,
     );
   }
 }
