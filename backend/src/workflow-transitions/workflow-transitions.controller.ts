@@ -6,6 +6,7 @@ import {
   Get,
   Param,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 
@@ -32,10 +33,12 @@ export class WorkflowTransitionsController {
     @Param('organizationId') organizationId: string,
     @Param('workflowId') workflowId: string,
     @Body() dto: CreateWorkflowTransitionDto,
+    @Req() req: { user: { userId: string } },
   ) {
     return this.workflowTransitionsService.createTransition(
       organizationId,
       workflowId,
+      req.user.userId,
       dto,
     );
   }
@@ -60,11 +63,13 @@ export class WorkflowTransitionsController {
     @Param('organizationId') organizationId: string,
     @Param('workflowId') workflowId: string,
     @Param('transitionId') transitionId: string,
+    @Req() req: { user: { userId: string } },
   ) {
     return this.workflowTransitionsService.deleteTransition(
       organizationId,
       workflowId,
       transitionId,
+      req.user.userId,
     );
   }
 }

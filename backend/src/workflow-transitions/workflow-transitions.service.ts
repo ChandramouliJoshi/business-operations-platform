@@ -53,6 +53,7 @@ export class WorkflowTransitionsService {
   async createTransition(
     organizationId: string,
     workflowId: string,
+    userId: string,
     dto: CreateWorkflowTransitionDto,
   ) {
     await this.validateWorkflow(organizationId, workflowId);
@@ -80,14 +81,45 @@ export class WorkflowTransitionsService {
       );
     }
 
+    const fromState = states.find(
+      (state) => state.id === dto.from_state_id,
+    );
+
+    const toState = states.find(
+      (state) => state.id === dto.to_state_id,
+    );
+
     try {
-      return await this.prisma.workflow_transitions.create({
-        data: {
-          workflow_id: workflowId,
-          from_state_id: dto.from_state_id,
-          to_state_id: dto.to_state_id,
-          name: dto.name,
-        },
+      return await this.prisma.$transaction(async (tx) => {
+        const transition = await tx.workflow_transitions.create({
+          data: {
+            workflow_id: workflowId,
+            from_state_id: dto.from_state_id,
+            to_state_id: dto.to_state_id,
+            name: dto.name,
+          },
+        });
+
+        // Record the audit event in the same transaction.
+        await tx.audit_logs.create({
+          data: {
+            organization_id: organizationId,
+            user_id: userId,
+            action: 'workflow_transition.created',
+            entity_type: 'workflow_transition',
+            entity_id: transition.id,
+            metadata: {
+              workflow_id: workflowId,
+              name: transition.name,
+              from_state_id: transition.from_state_id,
+              from_state_name: fromState?.name,
+              to_state_id: transition.to_state_id,
+              to_state_name: toState?.name,
+            },
+          },
+        });
+
+        return transition;
       });
     } catch (error) {
       this.handleDatabaseError(error);
@@ -116,29 +148,73 @@ export class WorkflowTransitionsService {
     organizationId: string,
     workflowId: string,
     transitionId: string,
+    userId: string,
   ) {
     await this.validateWorkflow(organizationId, workflowId);
 
-    const transition =
-      await this.prisma.workflow_transitions.findFirst({
+    return this.prisma.$transaction(async (tx) => {
+      const transition =
+        await tx.workflow_transitions.findFirst({
+          where: {
+            id: transitionId,
+            workflow_id: workflowId,
+          },
+        });
+
+      if (!transition) {
+        throw new NotFoundException(
+          'Workflow transition not found',
+        );
+      }
+
+      // Retrieve state names for a more informative audit record.
+      const states = await tx.workflow_states.findMany({
         where: {
-          id: transitionId,
-          workflow_id: workflowId,
+          id: {
+            in: [
+              transition.from_state_id,
+              transition.to_state_id,
+            ],
+          },
         },
       });
 
-    if (!transition) {
-      throw new NotFoundException('Workflow transition not found');
-    }
+      const fromState = states.find(
+        (state) => state.id === transition.from_state_id,
+      );
 
-    await this.prisma.workflow_transitions.delete({
-      where: {
-        id: transitionId,
-      },
+      const toState = states.find(
+        (state) => state.id === transition.to_state_id,
+      );
+
+      // Record the audit event before deleting the transition.
+      await tx.audit_logs.create({
+        data: {
+          organization_id: organizationId,
+          user_id: userId,
+          action: 'workflow_transition.deleted',
+          entity_type: 'workflow_transition',
+          entity_id: transition.id,
+          metadata: {
+            workflow_id: workflowId,
+            name: transition.name,
+            from_state_id: transition.from_state_id,
+            from_state_name: fromState?.name,
+            to_state_id: transition.to_state_id,
+            to_state_name: toState?.name,
+          },
+        },
+      });
+
+      await tx.workflow_transitions.delete({
+        where: {
+          id: transitionId,
+        },
+      });
+
+      return {
+        message: 'Workflow transition deleted successfully',
+      };
     });
-
-    return {
-      message: 'Workflow transition deleted successfully',
-    };
   }
 }
