@@ -1,8 +1,10 @@
+
 import {
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+
 import { PrismaService } from '../prisma/prisma.service.js';
 
 @Injectable()
@@ -62,17 +64,39 @@ export class ProjectsService {
       }
     }
 
-    return this.prisma.projects.create({
-      data: {
-        organization_id: organizationId,
-        name,
-        description,
-        created_by: createdBy,
-        manager_id: managerId,
-        status: status ?? 'active',
-        start_date: startDate ? new Date(startDate) : undefined,
-        deadline: deadline ? new Date(deadline) : undefined,
-      },
+    // Create project and audit log atomically
+    return this.prisma.$transaction(async (tx) => {
+      const project = await tx.projects.create({
+        data: {
+          organization_id: organizationId,
+          name,
+          description,
+          created_by: createdBy,
+          manager_id: managerId,
+          status: status ?? 'active',
+          start_date: startDate ? new Date(startDate) : undefined,
+          deadline: deadline ? new Date(deadline) : undefined,
+        },
+      });
+
+      await tx.audit_logs.create({
+        data: {
+          organization_id: organizationId,
+          user_id: createdBy,
+          action: 'project.created',
+          entity_type: 'project',
+          entity_id: project.id,
+          metadata: {
+            name: project.name,
+            status: project.status,
+            manager_id: project.manager_id,
+            start_date: project.start_date?.toISOString() ?? null,
+            deadline: project.deadline?.toISOString() ?? null,
+          },
+        },
+      });
+
+      return project;
     });
   }
 

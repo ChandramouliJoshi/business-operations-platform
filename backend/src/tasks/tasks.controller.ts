@@ -10,7 +10,9 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+
 import { TasksService } from './tasks.service.js';
+
 import { JwtAuthGuard } from '../auth/jwt/jwt.guard.js';
 import { RequirePermission } from '../organizations/permissions/permissions.decorator.js';
 import { PermissionsGuard } from '../organizations/permissions/permissions.guard.js';
@@ -72,9 +74,11 @@ export class TasksController {
       priority?: string;
       deadline?: string;
     },
+    @Req() req: any,
   ) {
     return this.tasksService.updateTask(
       taskId,
+      req.user.userId,
       body.title,
       body.description,
       body.assignedTo,
@@ -90,10 +94,12 @@ export class TasksController {
   async deleteTask(
     @Param('taskId') taskId: string,
     @Param('projectId') projectId: string,
+    @Req() req: any,
   ) {
     return this.tasksService.deleteTask(
       taskId,
       projectId,
+      req.user.userId,
     );
   }
 }
