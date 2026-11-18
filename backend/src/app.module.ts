@@ -13,6 +13,7 @@ import { WorkflowTransitionsModule } from './workflow-transitions/workflow-trans
 import { RequestsModule } from './requests/requests.module.js';
 import { ApprovalsModule } from './approvals/approvals.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
+import { AuditLogsModule } from './audit-logs/audit-logs.module.js';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { NotificationsModule } from './notifications/notifications.module.js';
     RequestsModule,
     ApprovalsModule,
     NotificationsModule,
+    AuditLogsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
