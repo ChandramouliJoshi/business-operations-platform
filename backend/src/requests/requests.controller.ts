@@ -77,10 +77,12 @@ export class RequestsController {
     @Param('organizationId') organizationId: string,
     @Param('requestId') requestId: string,
     @Body() body: UpdateRequestDto,
+    @Req() req: any,
   ) {
     return this.requestsService.updateRequest(
       organizationId,
       requestId,
+      req.user.userId,
       body,
     );
   }
@@ -92,10 +94,12 @@ export class RequestsController {
     @Param('organizationId') organizationId: string,
     @Param('requestId') requestId: string,
     @Body() body: TransitionRequestDto,
+    @Req() req: any,
   ) {
     return this.requestsService.transitionRequest(
       organizationId,
       requestId,
+      req.user.userId,
       body.to_state_id,
     );
   }

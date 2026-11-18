@@ -121,30 +121,48 @@ export class RequestsService {
       );
     }
 
-    const request = await this.prisma.requests.create({
-      data: {
-        organization_id: organizationId,
-        workflow_id: workflowId,
-        created_by: userId,
-        current_state_id: initialStates[0].id,
-        title,
-        description,
-        data: data ?? {},
-      },
-      include: {
-        workflow_states: true,
-        workflows: true,
-        users: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+    // Create request and audit log atomically
+    return this.prisma.$transaction(async (tx) => {
+      const request = await tx.requests.create({
+        data: {
+          organization_id: organizationId,
+          workflow_id: workflowId,
+          created_by: userId,
+          current_state_id: initialStates[0].id,
+          title,
+          description,
+          data: data ?? {},
+        },
+        include: {
+          workflow_states: true,
+          workflows: true,
+          users: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    return request;
+      await tx.audit_logs.create({
+        data: {
+          organization_id: organizationId,
+          user_id: userId,
+          action: 'request.created',
+          entity_type: 'request',
+          entity_id: request.id,
+          metadata: {
+            title: request.title,
+            workflow_id: workflowId,
+            initial_state_id: initialStates[0].id,
+          },
+        },
+      });
+
+      return request;
+    });
   }
 
   // Get all requests belonging to an organization
@@ -196,42 +214,70 @@ export class RequestsService {
   async updateRequest(
     organizationId: string,
     requestId: string,
+    userId: string,
     data: {
       title?: string;
       description?: string;
       data?: Record<string, any>;
     },
   ) {
-    await this.validateRequest(
-      organizationId,
-      requestId,
-    );
-
     if (Object.keys(data).length === 0) {
       throw new BadRequestException(
         'At least one field must be provided for update',
       );
     }
 
-    return this.prisma.requests.update({
-      where: {
-        id: requestId,
-      },
-      data: {
-        ...data,
-        updated_at: new Date(),
-      },
-      include: {
-        workflow_states: true,
-        workflows: true,
-        users: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+    // Update request and audit log atomically
+    return this.prisma.$transaction(async (tx) => {
+      const existingRequest =
+        await tx.requests.findFirst({
+          where: {
+            id: requestId,
+            organization_id: organizationId,
+          },
+        });
+
+      if (!existingRequest) {
+        throw new NotFoundException('Request not found');
+      }
+
+      const updatedRequest = await tx.requests.update({
+        where: {
+          id: requestId,
+        },
+        data: {
+          ...data,
+          updated_at: new Date(),
+        },
+        include: {
+          workflow_states: true,
+          workflows: true,
+          users: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
-      },
+      });
+
+      await tx.audit_logs.create({
+        data: {
+          organization_id: organizationId,
+          user_id: userId,
+          action: 'request.updated',
+          entity_type: 'request',
+          entity_id: requestId,
+          metadata: {
+            updated_fields: Object.keys(data),
+            previous_title: existingRequest.title,
+            new_title: updatedRequest.title,
+          },
+        },
+      });
+
+      return updatedRequest;
     });
   }
 
@@ -239,6 +285,7 @@ export class RequestsService {
   async transitionRequest(
     organizationId: string,
     requestId: string,
+    userId: string,
     toStateId: string,
   ) {
     return this.prisma.$transaction(async (tx) => {
@@ -297,8 +344,7 @@ export class RequestsService {
         );
       }
 
-      // Update only if the request is still in its original state.
-      // This prevents concurrent transitions from overwriting each other.
+      // Prevent concurrent transitions from overwriting each other
       const result = await tx.requests.updateMany({
         where: {
           id: requestId,
@@ -317,22 +363,42 @@ export class RequestsService {
         );
       }
 
-      return tx.requests.findUnique({
-        where: {
-          id: requestId,
-        },
-        include: {
-          workflow_states: true,
-          workflows: true,
-          users: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
+      const updatedRequest =
+        await tx.requests.findUnique({
+          where: {
+            id: requestId,
+          },
+          include: {
+            workflow_states: true,
+            workflows: true,
+            users: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
             },
+          },
+        });
+
+      // Record the state transition in the audit log
+      await tx.audit_logs.create({
+        data: {
+          organization_id: organizationId,
+          user_id: userId,
+          action: 'request.transitioned',
+          entity_type: 'request',
+          entity_id: requestId,
+          metadata: {
+            from_state_id: request.current_state_id,
+            from_state_name: request.workflow_states.name,
+            to_state_id: targetState.id,
+            to_state_name: targetState.name,
           },
         },
       });
+
+      return updatedRequest;
     });
   }
 }

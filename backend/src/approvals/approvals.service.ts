@@ -66,6 +66,7 @@ export class ApprovalsService {
   // Create an approval assignment.
   async createApproval(
     organizationId: string,
+    userId: string,
     dto: CreateApprovalDto,
   ) {
     const request = await this.validateRequest(
@@ -86,46 +87,67 @@ export class ApprovalsService {
       dto.approver_id,
     );
 
-    // Prevent duplicate pending approvals for the same user.
-    const existingApproval =
-      await this.prisma.approvals.findFirst({
-        where: {
+    // Create approval and audit log atomically.
+    return this.prisma.$transaction(async (tx) => {
+      // Prevent duplicate pending approvals for the same user.
+      const existingApproval =
+        await tx.approvals.findFirst({
+          where: {
+            request_id: dto.request_id,
+            approver_id: dto.approver_id,
+            status: 'pending',
+          },
+        });
+
+      if (existingApproval) {
+        throw new ConflictException(
+          'A pending approval already exists for this user and request',
+        );
+      }
+
+      const approval = await tx.approvals.create({
+        data: {
           request_id: dto.request_id,
           approver_id: dto.approver_id,
           status: 'pending',
+          comment: dto.comment,
+        },
+        include: {
+          users: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          requests: {
+            select: {
+              id: true,
+              title: true,
+              organization_id: true,
+              current_state_id: true,
+            },
+          },
         },
       });
 
-    if (existingApproval) {
-      throw new ConflictException(
-        'A pending approval already exists for this user and request',
-      );
-    }
+      await tx.audit_logs.create({
+        data: {
+          organization_id: organizationId,
+          user_id: userId,
+          action: 'approval.assigned',
+          entity_type: 'approval',
+          entity_id: approval.id,
+          metadata: {
+            request_id: dto.request_id,
+            request_title: request.title,
+            approver_id: dto.approver_id,
+            status: 'pending',
+          },
+        },
+      });
 
-    return this.prisma.approvals.create({
-      data: {
-        request_id: dto.request_id,
-        approver_id: dto.approver_id,
-        status: 'pending',
-        comment: dto.comment,
-      },
-      include: {
-        users: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        requests: {
-          select: {
-            id: true,
-            title: true,
-            organization_id: true,
-            current_state_id: true,
-          },
-        },
-      },
+      return approval;
     });
   }
 
@@ -199,70 +221,115 @@ export class ApprovalsService {
     userId: string,
     dto: UpdateApprovalDecisionDto,
   ) {
-    const approval = await this.prisma.approvals.findFirst({
-      where: {
-        id: approvalId,
-        requests: {
-          is: {
-            organization_id: organizationId,
+    return this.prisma.$transaction(async (tx) => {
+      const approval = await tx.approvals.findFirst({
+        where: {
+          id: approvalId,
+          requests: {
+            is: {
+              organization_id: organizationId,
+            },
           },
         },
-      },
-      include: {
-        requests: {
-          select: {
-            id: true,
-            organization_id: true,
-            current_state_id: true,
+        include: {
+          requests: {
+            select: {
+              id: true,
+              title: true,
+              organization_id: true,
+              current_state_id: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (!approval) {
-      throw new NotFoundException(
-        'Approval not found in this organization',
-      );
-    }
+      if (!approval) {
+        throw new NotFoundException(
+          'Approval not found in this organization',
+        );
+      }
 
-    // Only the assigned approver can make the decision.
-    if (approval.approver_id !== userId) {
-      throw new ForbiddenException(
-        'Only the assigned approver can decide this approval',
-      );
-    }
+      // Only the assigned approver can make the decision.
+      if (approval.approver_id !== userId) {
+        throw new ForbiddenException(
+          'Only the assigned approver can decide this approval',
+        );
+      }
 
-    // An approval can only be decided once.
-    if (approval.status !== 'pending') {
-      throw new ConflictException(
-        'This approval has already been decided',
-      );
-    }
+      // An approval can only be decided once.
+      if (approval.status !== 'pending') {
+        throw new ConflictException(
+          'This approval has already been decided',
+        );
+      }
 
-    return this.prisma.approvals.update({
-      where: {
-        id: approvalId,
-      },
-      data: {
-        status: dto.status,
-        comment: dto.comment,
-      },
-      include: {
-        users: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+      // Only update if the approval is still pending.
+      // This prevents concurrent decisions from overwriting each other.
+      const result = await tx.approvals.updateMany({
+        where: {
+          id: approvalId,
+          status: 'pending',
+        },
+        data: {
+          status: dto.status,
+          comment: dto.comment,
+          updated_at: new Date(),
+        },
+      });
+
+      if (result.count === 0) {
+        throw new ConflictException(
+          'This approval has already been decided. Please refresh and try again',
+        );
+      }
+
+      const updatedApproval =
+        await tx.approvals.findUnique({
+          where: {
+            id: approvalId,
+          },
+          include: {
+            users: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+            requests: {
+              select: {
+                id: true,
+                title: true,
+                organization_id: true,
+              },
+            },
+          },
+        });
+
+      const action =
+        dto.status === 'approved'
+          ? 'approval.approved'
+          : 'approval.rejected';
+
+      await tx.audit_logs.create({
+        data: {
+          organization_id: organizationId,
+          user_id: userId,
+          action,
+          entity_type: 'approval',
+          entity_id: approvalId,
+          metadata: {
+            request_id: approval.request_id,
+            request_title: approval.requests.title,
+            approver_id: approval.approver_id,
+            previous_status: approval.status,
+            new_status: dto.status,
+            comment: dto.comment ?? null,
           },
         },
-        requests: {
-          select: {
-            id: true,
-            title: true,
-            organization_id: true,
-          },
-        },
-      },
+      });
+
+      return updatedApproval;
     });
   }
 }

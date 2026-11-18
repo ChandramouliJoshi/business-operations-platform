@@ -31,9 +31,11 @@ export class ApprovalsController {
   createApproval(
     @Param('organizationId') organizationId: string,
     @Body() dto: CreateApprovalDto,
+    @Req() req: any,
   ) {
     return this.approvalsService.createApproval(
       organizationId,
+      req.user.userId,
       dto,
     );
   }
