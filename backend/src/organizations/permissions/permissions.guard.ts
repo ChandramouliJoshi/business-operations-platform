@@ -1,3 +1,4 @@
+
 import {
   CanActivate,
   ExecutionContext,
@@ -5,9 +6,9 @@ import {
   ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { REQUIRE_PERMISSION_KEY } from './permissions.decorator.js';
-import { Reflector } from '@nestjs/core';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -16,12 +17,10 @@ export class PermissionsGuard implements CanActivate {
     private readonly prisma: PrismaService,
   ) {}
 
-  async canActivate(
-    context: ExecutionContext,
-  ): Promise<boolean> {
-    const permission = this.reflector.get<string>(
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const permission = this.reflector.getAllAndOverride<string>(
       REQUIRE_PERMISSION_KEY,
-      context.getHandler(),
+      [context.getHandler(), context.getClass()],
     );
 
     if (!permission) {
@@ -32,31 +31,32 @@ export class PermissionsGuard implements CanActivate {
     const user = request.user;
 
     if (!user?.userId) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('Authentication required');
     }
 
     const organizationId = request.params.organizationId;
 
     if (!organizationId) {
-      throw new ForbiddenException(
-        'Organization ID is required',
-      );
+      throw new ForbiddenException('Organization ID is required');
     }
 
     const member =
-      await this.prisma.organization_members.findUnique({
+      await this.prisma.organization_members.findFirst({
         where: {
-          organization_id_user_id: {
-            organization_id: organizationId,
-            user_id: user.userId,
-          },
+          organization_id: organizationId,
+          user_id: user.userId,
+          status: 'active',
         },
-        include: {
+        select: {
           roles: {
-            include: {
+            select: {
               role_permissions: {
-                include: {
-                  permissions: true,
+                select: {
+                  permissions: {
+                    select: {
+                      name: true,
+                    },
+                  },
                 },
               },
             },
@@ -66,7 +66,7 @@ export class PermissionsGuard implements CanActivate {
 
     if (!member) {
       throw new ForbiddenException(
-        'You are not a member of this organization',
+        'You are not an active member of this organization',
       );
     }
 

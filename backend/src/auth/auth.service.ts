@@ -1,3 +1,4 @@
+
 import {
   Injectable,
   ConflictException,
@@ -25,20 +26,33 @@ export class AuthService {
 
     const password_hash = await bcrypt.hash(password, 12);
 
-    const user = await this.prisma.users.create({
-      data: {
-        name,
-        email,
-        password_hash,
-      },
-    });
+    try {
+      const user = await this.prisma.users.create({
+        data: {
+          name,
+          email,
+          password_hash,
+        },
+      });
 
-    return {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      created_at: user.created_at,
-    };
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        created_at: user.created_at,
+      };
+    } catch (error: unknown) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Email already registered');
+      }
+
+      throw error;
+    }
   }
 
   async login(email: string, password: string) {
