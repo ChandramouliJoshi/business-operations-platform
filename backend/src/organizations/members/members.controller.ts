@@ -1,21 +1,26 @@
+
 import {
   Body,
   Controller,
   Get,
   Param,
   Post,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import { MembersService } from './members.service.js';
 import { JwtAuthGuard } from '../../auth/jwt/jwt.guard.js';
+import { PermissionsGuard } from '../permissions/permissions.guard.js';
+import { RequirePermission } from '../permissions/permissions.decorator.js';
 
 @Controller('organizations/:organizationId/members')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class MembersController {
-  constructor(private readonly membersService: MembersService) {}
+  constructor(
+    private readonly membersService: MembersService,
+  ) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @RequirePermission('members.create')
   async addMember(
     @Param('organizationId') organizationId: string,
     @Body()
@@ -24,7 +29,6 @@ export class MembersController {
       roleId: string;
       departmentId?: string;
     },
-    @Req() req: any,
   ) {
     return this.membersService.addMember(
       organizationId,
@@ -35,7 +39,7 @@ export class MembersController {
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard)
+  @RequirePermission('members.view')
   async getMembers(
     @Param('organizationId') organizationId: string,
   ) {
