@@ -27,6 +27,7 @@ export class TasksController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermission('tasks.create')
   async createTask(
+    @Param('organizationId') organizationId: string,
     @Param('projectId') projectId: string,
     @Body()
     body: {
@@ -40,6 +41,7 @@ export class TasksController {
     @Req() req: any,
   ) {
     return this.tasksService.createTask(
+      organizationId,
       projectId,
       req.user.userId,
       body.title,
@@ -55,28 +57,36 @@ export class TasksController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermission('tasks.view')
   async getTasks(
+    @Param('organizationId') organizationId: string,
     @Param('projectId') projectId: string,
   ) {
-    return this.tasksService.getTasks(projectId);
+    return this.tasksService.getTasks(
+      organizationId,
+      projectId,
+    );
   }
 
   @Patch(':taskId')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermission('tasks.update')
   async updateTask(
+    @Param('organizationId') organizationId: string,
+    @Param('projectId') projectId: string,
     @Param('taskId') taskId: string,
     @Body()
     body: {
       title?: string;
       description?: string;
-      assignedTo?: string;
+      assignedTo?: string | null;
       status?: string;
       priority?: string;
-      deadline?: string;
+      deadline?: string | null;
     },
     @Req() req: any,
   ) {
     return this.tasksService.updateTask(
+      organizationId,
+      projectId,
       taskId,
       req.user.userId,
       body.title,
@@ -92,13 +102,15 @@ export class TasksController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermission('tasks.delete')
   async deleteTask(
-    @Param('taskId') taskId: string,
+    @Param('organizationId') organizationId: string,
     @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
     @Req() req: any,
   ) {
     return this.tasksService.deleteTask(
-      taskId,
+      organizationId,
       projectId,
+      taskId,
       req.user.userId,
     );
   }

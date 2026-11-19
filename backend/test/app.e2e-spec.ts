@@ -1,29 +1,40 @@
-import { Test, TestingModule } from '@nestjs/testing';
+
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { App } from 'supertest/types.js';
-import { AppModule } from './../src/app.module.js';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createTestApp } from './helpers/create-test-app.js';
+import { PrismaService } from '../src/prisma/prisma.service.js';
 
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+describe('Application E2E', () => {
+  let app: INestApplication;
+  let prisma: PrismaService;
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+  beforeAll(async () => {
+    const testApplication = await createTestApp();
 
-    app = moduleFixture.createNestApplication();
-    await app.init();
+    app = testApplication.app;
+    prisma = testApplication.prisma;
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
+  afterAll(async () => {
+    if (app) {
+      await app.close();
+    }
+  });
+
+  it('GET / should return the application welcome message', async () => {
+    await request(app.getHttpServer())
       .get('/')
       .expect(200)
       .expect('Hello World!');
   });
 
-  afterEach(async () => {
-    await app.close();
+  it('should connect to the dedicated test database', async () => {
+    const result = await prisma.$queryRaw<
+      Array<{ database_name: string }>
+    >`SELECT current_database() AS database_name`;
+
+    expect(result).toHaveLength(1);
+    expect(result[0].database_name).toBe('postgres');
   });
 });

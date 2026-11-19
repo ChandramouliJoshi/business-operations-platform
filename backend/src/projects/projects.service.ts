@@ -4,7 +4,6 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-
 import { PrismaService } from '../prisma/prisma.service.js';
 
 @Injectable()
@@ -21,50 +20,51 @@ export class ProjectsService {
     startDate?: string,
     deadline?: string,
   ) {
-    // Check organization exists
+    // 1. Check organization exists
     const organization = await this.prisma.organizations.findUnique({
       where: { id: organizationId },
+      select: { id: true },
     });
 
     if (!organization) {
       throw new NotFoundException('Organization not found');
     }
 
-    // Check creator belongs to organization
-    const creator = await this.prisma.organization_members.findUnique({
+    // 2. Check creator is an active organization member
+    const creator = await this.prisma.organization_members.findFirst({
       where: {
-        organization_id_user_id: {
-          organization_id: organizationId,
-          user_id: createdBy,
-        },
+        organization_id: organizationId,
+        user_id: createdBy,
+        status: 'active',
       },
+      select: { id: true },
     });
 
     if (!creator) {
       throw new ConflictException(
-        'Project creator is not a member of this organization',
+        'Project creator is not an active member of this organization',
       );
     }
 
-    // If manager is provided, check manager belongs to organization
+    // 3. If manager is provided, check active membership
     if (managerId) {
-      const manager = await this.prisma.organization_members.findUnique({
+      const manager = await this.prisma.organization_members.findFirst({
         where: {
-          organization_id_user_id: {
-            organization_id: organizationId,
-            user_id: managerId,
-          },
+          organization_id: organizationId,
+          user_id: managerId,
+          status: 'active',
         },
+        select: { id: true },
       });
 
       if (!manager) {
         throw new ConflictException(
-          'Project manager is not a member of this organization',
+          'Project manager is not an active member of this organization',
         );
       }
     }
 
-    // Create project and audit log atomically
+    // 4. Create project and audit log atomically
     return this.prisma.$transaction(async (tx) => {
       const project = await tx.projects.create({
         data: {
@@ -103,6 +103,7 @@ export class ProjectsService {
   async getProjects(organizationId: string) {
     const organization = await this.prisma.organizations.findUnique({
       where: { id: organizationId },
+      select: { id: true },
     });
 
     if (!organization) {

@@ -13,6 +13,7 @@ export class TasksService {
 
   // Create a task
   async createTask(
+    organizationId: string,
     projectId: string,
     createdBy: string,
     title: string,
@@ -22,48 +23,60 @@ export class TasksService {
     priority?: string,
     deadline?: string,
   ) {
-    const project = await this.prisma.projects.findUnique({
-      where: { id: projectId },
+    // 1. Verify project belongs to the requested organization
+    const project = await this.prisma.projects.findFirst({
+      where: {
+        id: projectId,
+        organization_id: organizationId,
+      },
+      select: {
+        id: true,
+        organization_id: true,
+      },
     });
 
     if (!project) {
-      throw new NotFoundException('Project not found');
+      throw new NotFoundException(
+        'Project not found in this organization',
+      );
     }
 
-    const creator = await this.prisma.organization_members.findUnique({
+    // 2. Verify creator is an active organization member
+    const creator = await this.prisma.organization_members.findFirst({
       where: {
-        organization_id_user_id: {
-          organization_id: project.organization_id,
-          user_id: createdBy,
-        },
+        organization_id: organizationId,
+        user_id: createdBy,
+        status: 'active',
       },
+      select: { id: true },
     });
 
     if (!creator) {
       throw new ConflictException(
-        'Task creator is not a member of this organization',
+        'Task creator is not an active member of this organization',
       );
     }
 
+    // 3. Verify assignee is an active organization member
     if (assignedTo) {
       const assignee =
-        await this.prisma.organization_members.findUnique({
+        await this.prisma.organization_members.findFirst({
           where: {
-            organization_id_user_id: {
-              organization_id: project.organization_id,
-              user_id: assignedTo,
-            },
+            organization_id: organizationId,
+            user_id: assignedTo,
+            status: 'active',
           },
+          select: { id: true },
         });
 
       if (!assignee) {
         throw new ConflictException(
-          'Task assignee is not a member of this organization',
+          'Task assignee is not an active member of this organization',
         );
       }
     }
 
-    // Create task and audit log atomically
+    // 4. Create task and audit log atomically
     return this.prisma.$transaction(async (tx) => {
       const task = await tx.tasks.create({
         data: {
@@ -80,7 +93,7 @@ export class TasksService {
 
       await tx.audit_logs.create({
         data: {
-          organization_id: project.organization_id,
+          organization_id: organizationId,
           user_id: createdBy,
           action: 'task.created',
           entity_type: 'task',
@@ -100,36 +113,58 @@ export class TasksService {
     });
   }
 
-  // Get all tasks belonging to a project
-  async getTasks(projectId: string) {
-    const project = await this.prisma.projects.findUnique({
-      where: { id: projectId },
+  // Get all tasks belonging to a project in an organization
+  async getTasks(
+    organizationId: string,
+    projectId: string,
+  ) {
+    const project = await this.prisma.projects.findFirst({
+      where: {
+        id: projectId,
+        organization_id: organizationId,
+      },
+      select: { id: true },
     });
 
     if (!project) {
-      throw new NotFoundException('Project not found');
+      throw new NotFoundException(
+        'Project not found in this organization',
+      );
     }
 
     return this.prisma.tasks.findMany({
-      where: { project_id: projectId },
-      orderBy: { created_at: 'desc' },
+      where: {
+        project_id: projectId,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
     });
   }
 
-  // Update a task
+  // Update a task within its organization and project
   async updateTask(
+    organizationId: string,
+    projectId: string,
     taskId: string,
     userId: string,
     title?: string,
     description?: string,
-    assignedTo?: string,
+    assignedTo?: string | null,
     status?: string,
     priority?: string,
-    deadline?: string,
+    deadline?: string | null,
   ) {
     return this.prisma.$transaction(async (tx) => {
-      const task = await tx.tasks.findUnique({
-        where: { id: taskId },
+      // 1. Find task only if it belongs to this project and organization
+      const task = await tx.tasks.findFirst({
+        where: {
+          id: taskId,
+          project_id: projectId,
+          projects: {
+            organization_id: organizationId,
+          },
+        },
         include: {
           projects: {
             select: {
@@ -141,31 +176,37 @@ export class TasksService {
       });
 
       if (!task) {
-        throw new NotFoundException('Task not found');
+        throw new NotFoundException(
+          'Task not found in this project and organization',
+        );
       }
 
+      // 2. Verify assignee if a new user is provided
       if (assignedTo) {
         const assignee =
-          await tx.organization_members.findUnique({
+          await tx.organization_members.findFirst({
             where: {
-              organization_id_user_id: {
-                organization_id: task.projects.organization_id,
-                user_id: assignedTo,
-              },
+              organization_id: organizationId,
+              user_id: assignedTo,
+              status: 'active',
             },
+            select: { id: true },
           });
 
         if (!assignee) {
           throw new ConflictException(
-            'Task assignee is not a member of this organization',
+            'Task assignee is not an active member of this organization',
           );
         }
       }
 
+      // 3. Build update data using explicitly provided fields
       const updateData = {
         ...(title !== undefined && { title }),
         ...(description !== undefined && { description }),
-        ...(assignedTo !== undefined && { assigned_to: assignedTo }),
+        ...(assignedTo !== undefined && {
+          assigned_to: assignedTo,
+        }),
         ...(status !== undefined && { status }),
         ...(priority !== undefined && { priority }),
         ...(deadline !== undefined && {
@@ -179,20 +220,22 @@ export class TasksService {
         );
       }
 
+      // 4. Update task
       const updatedTask = await tx.tasks.update({
         where: { id: taskId },
         data: updateData,
       });
 
+      // 5. Record audit log
       await tx.audit_logs.create({
         data: {
-          organization_id: task.projects.organization_id,
+          organization_id: organizationId,
           user_id: userId,
           action: 'task.updated',
           entity_type: 'task',
           entity_id: taskId,
           metadata: {
-            project_id: task.project_id,
+            project_id: projectId,
             updated_fields: Object.keys(updateData),
             previous_title: task.title,
             new_title: updatedTask.title,
@@ -206,17 +249,22 @@ export class TasksService {
     });
   }
 
-  // Delete a task
+  // Delete a task within its organization and project
   async deleteTask(
-    taskId: string,
+    organizationId: string,
     projectId: string,
+    taskId: string,
     userId: string,
   ) {
     return this.prisma.$transaction(async (tx) => {
+      // 1. Find task only if it belongs to this project and organization
       const task = await tx.tasks.findFirst({
         where: {
           id: taskId,
           project_id: projectId,
+          projects: {
+            organization_id: organizationId,
+          },
         },
         include: {
           projects: {
@@ -229,15 +277,14 @@ export class TasksService {
 
       if (!task) {
         throw new NotFoundException(
-          'Task not found in this project',
+          'Task not found in this project and organization',
         );
       }
 
-      // Record the deletion before removing the task.
-      // Both operations are part of the same transaction.
+      // 2. Record deletion before removing the task
       await tx.audit_logs.create({
         data: {
-          organization_id: task.projects.organization_id,
+          organization_id: organizationId,
           user_id: userId,
           action: 'task.deleted',
           entity_type: 'task',
@@ -252,8 +299,11 @@ export class TasksService {
         },
       });
 
+      // 3. Delete task
       await tx.tasks.delete({
-        where: { id: taskId },
+        where: {
+          id: taskId,
+        },
       });
 
       return {
