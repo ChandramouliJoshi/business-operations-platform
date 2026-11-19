@@ -1,3 +1,4 @@
+
 import {
   Body,
   Controller,
@@ -12,13 +13,13 @@ import { RequirePermission } from '../permissions/permissions.decorator.js';
 import { PermissionsGuard } from '../permissions/permissions.guard.js';
 
 @Controller('organizations/:organizationId/departments')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class DepartmentsController {
   constructor(
     private readonly departmentsService: DepartmentsService,
   ) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermission('departments.create')
   async createDepartment(
     @Param('organizationId') organizationId: string,
@@ -36,7 +37,7 @@ export class DepartmentsController {
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard)
+  @RequirePermission('departments.view')
   async getDepartments(
     @Param('organizationId') organizationId: string,
   ) {
