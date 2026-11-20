@@ -1,4 +1,10 @@
 
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '../../src/generated/prisma/client.js';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+// Validate test database configuration
 const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
@@ -31,4 +37,71 @@ if (
   throw new Error('Test DATABASE_URL still contains placeholder values.');
 }
 
+// Automatically discover permissions from backend decorators
+function findPermissionNames(directory: string): Set<string> {
+  const permissions = new Set<string>();
+
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const fullPath = join(directory, entry.name);
+
+    if (entry.isDirectory()) {
+      if (entry.name !== 'generated') {
+        for (const permission of findPermissionNames(fullPath)) {
+          permissions.add(permission);
+        }
+      }
+
+      continue;
+    }
+
+    if (!entry.isFile() || !entry.name.endsWith('.ts')) {
+      continue;
+    }
+
+    const content = readFileSync(fullPath, 'utf-8');
+
+    const matches = content.matchAll(
+      /@RequirePermission\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
+    );
+
+    for (const match of matches) {
+      permissions.add(match[1]);
+    }
+  }
+
+  return permissions;
+}
+
+// Seed missing permissions into the dedicated test database
+async function seedPermissions() {
+  const permissionNames = findPermissionNames(join(process.cwd(), 'src'));
+
+  if (permissionNames.size === 0) {
+    throw new Error(
+      'No @RequirePermission() decorators were found. Permission seeding aborted.',
+    );
+  }
+
+  const prisma = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: databaseUrl }),
+  });
+
+  try {
+    await prisma.$connect();
+
+    await prisma.permissions.createMany({
+      data: Array.from(permissionNames).map((name) => ({ name })),
+      skipDuplicates: true,
+    });
+
+    console.info(
+      `E2E permissions ready: ${permissionNames.size} permission(s).`,
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
 console.info('E2E test environment initialized.');
+
+await seedPermissions();
