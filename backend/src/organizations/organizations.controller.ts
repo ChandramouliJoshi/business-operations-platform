@@ -1,10 +1,13 @@
+
 import {
   Body,
   Controller,
+  Get,
   Post,
   Req,
   UseGuards,
 } from '@nestjs/common';
+
 import { OrganizationsService } from './organizations.service.js';
 import { JwtAuthGuard } from '../auth/jwt/jwt.guard.js';
 
@@ -14,6 +17,16 @@ export class OrganizationsController {
     private readonly organizationsService: OrganizationsService,
   ) {}
 
+  // Get all organizations the logged-in user belongs to
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  async getUserOrganizations(@Req() req: any) {
+    return this.organizationsService.getUserOrganizations(
+      req.user.userId,
+    );
+  }
+
+  // Create a new organization
   @Post()
   @UseGuards(JwtAuthGuard)
   async createOrganization(

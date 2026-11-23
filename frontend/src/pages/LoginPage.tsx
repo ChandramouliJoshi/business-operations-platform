@@ -14,7 +14,6 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import PasswordStrength from '../components/PasswordStrength.tsx';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -27,7 +26,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const redirectTo = location.state?.from?.pathname || '/';
+  const redirectTo =
+    location.state?.from?.pathname || '/organizations';
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -136,6 +136,13 @@ export default function LoginPage() {
                 >
                   Password
                 </label>
+
+                <Link
+                  to="/forgot-password"
+                  className="text-xs font-semibold text-indigo-600 transition hover:text-indigo-800"
+                >
+                  Forgot password?
+                </Link>
               </div>
 
               <div className="relative">

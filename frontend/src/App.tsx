@@ -1,13 +1,16 @@
 
 import { Navigate, Route, Routes } from 'react-router-dom';
+import type { ReactNode } from 'react';
 
 import Dashboard from './Dashboard';
+import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import OrganizationSelectionPage from './pages/OrganizationSelectionPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './context/AuthContext';
 
-function PublicRoute({ children }: { children: React.ReactNode }) {
+function PublicRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
@@ -18,7 +21,11 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return isAuthenticated ? <Navigate to="/" replace /> : children;
+  return isAuthenticated ? (
+    <Navigate to="/organizations" replace />
+  ) : (
+    <>{children}</>
+  );
 }
 
 export default function App() {
@@ -27,6 +34,15 @@ export default function App() {
   return (
     <Routes>
       {/* Public routes */}
+      <Route
+        path="/"
+        element={
+          <PublicRoute>
+            <LandingPage />
+          </PublicRoute>
+        }
+      />
+
       <Route
         path="/login"
         element={
@@ -47,7 +63,15 @@ export default function App() {
 
       {/* Protected routes */}
       <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<Dashboard />} />
+        <Route
+          path="/organizations"
+          element={<OrganizationSelectionPage />}
+        />
+
+        <Route
+          path="/workspace/:organizationId"
+          element={<Dashboard />}
+        />
       </Route>
 
       {/* Unknown routes */}
@@ -55,7 +79,10 @@ export default function App() {
         path="*"
         element={
           loading ? null : (
-            <Navigate to={isAuthenticated ? '/' : '/login'} replace />
+            <Navigate
+              to={isAuthenticated ? '/organizations' : '/'}
+              replace
+            />
           )
         }
       />

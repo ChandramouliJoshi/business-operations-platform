@@ -6,6 +6,50 @@ import { PrismaService } from '../prisma/prisma.service.js';
 export class OrganizationsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // Get all active organizations belonging to a user
+  async getUserOrganizations(userId: string) {
+    const memberships =
+      await this.prisma.organization_members.findMany({
+        where: {
+          user_id: userId,
+          status: 'active',
+        },
+        include: {
+          organizations: true,
+          roles: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+            },
+          },
+        },
+        orderBy: {
+          joined_at: 'asc',
+        },
+      });
+
+    return memberships.map((membership) => ({
+      id: membership.organizations.id,
+      name: membership.organizations.name,
+      email: membership.organizations.email,
+      phone: membership.organizations.phone,
+      website: membership.organizations.website,
+      industry: membership.organizations.industry,
+      size: membership.organizations.size,
+      created_at: membership.organizations.created_at,
+
+      membership: {
+        id: membership.id,
+        status: membership.status,
+        joined_at: membership.joined_at,
+      },
+
+      role: membership.roles,
+    }));
+  }
+
+  // Create a new organization
   async createOrganization(
     name: string,
     userId: string,
