@@ -18,12 +18,15 @@
 html {
   min-width: 320px;
   min-height: 100%;
+  color-scheme: light;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background: #f7f8fc;
+  transition: background-color 220ms ease, color 220ms ease;
 }
 
 button,
@@ -52,4 +55,115 @@ button {
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 20px;
+}
+
+/* Nexora dark appearance */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  background: #0f111a;
+}
+
+html[data-theme="dark"] body {
+  color: #e2e8f0;
+  background: #0f111a;
+}
+
+/* Main workspace surfaces */
+html[data-theme="dark"] main {
+  background-color: #0f111a !important;
+}
+
+html[data-theme="dark"] header {
+  background-color: rgb(23 25 38 / 88%) !important;
+  border-color: rgb(71 85 105 / 48%) !important;
+}
+
+/* Tailwind utility overrides used by the existing dashboard and pages */
+html[data-theme="dark"] [class~="bg-white"],
+html[data-theme="dark"] [class~="bg-white/85"],
+html[data-theme="dark"] [class*="bg-white/"] {
+  background-color: #191d2b !important;
+}
+
+html[data-theme="dark"] [class~="bg-[#f7f8fc]"],
+html[data-theme="dark"] [class~="bg-slate-50"],
+html[data-theme="dark"] [class~="bg-slate-100"] {
+  background-color: #131724 !important;
+}
+
+html[data-theme="dark"] [class~="bg-indigo-50"],
+html[data-theme="dark"] [class~="bg-indigo-50/70"] {
+  background-color: rgb(99 102 241 / 13%) !important;
+}
+
+html[data-theme="dark"] [class~="border-slate-200"],
+html[data-theme="dark"] [class~="border-slate-200/80"],
+html[data-theme="dark"] [class~="border-slate-100"] {
+  border-color: #30384a !important;
+}
+
+html[data-theme="dark"] [class~="border-indigo-100"] {
+  border-color: rgb(99 102 241 / 30%) !important;
+}
+
+html[data-theme="dark"] [class~="text-slate-900"],
+html[data-theme="dark"] [class~="text-slate-800"],
+html[data-theme="dark"] [class~="text-slate-700"] {
+  color: #e5eaf4 !important;
+}
+
+html[data-theme="dark"] [class~="text-slate-600"],
+html[data-theme="dark"] [class~="text-slate-500"] {
+  color: #a5b0c3 !important;
+}
+
+html[data-theme="dark"] [class~="text-slate-400"] {
+  color: #8793a8 !important;
+}
+
+html[data-theme="dark"] [class~="hover:bg-slate-50"]:hover,
+html[data-theme="dark"] [class~="hover:bg-slate-100"]:hover {
+  background-color: #242a3a !important;
+}
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select {
+  color: #e5eaf4;
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+  color: #77839a;
+}
+
+html[data-theme="dark"] .recharts-cartesian-grid-horizontal line,
+html[data-theme="dark"] .recharts-cartesian-grid-vertical line {
+  stroke: #30384a;
+}
+
+html[data-theme="dark"] .recharts-default-tooltip {
+  background-color: #191d2b !important;
+  border-color: #30384a !important;
+  color: #e5eaf4 !important;
+}
+
+html[data-theme="dark"] .recharts-tooltip-label,
+html[data-theme="dark"] .recharts-tooltip-item {
+  color: #e5eaf4 !important;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #3b455a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

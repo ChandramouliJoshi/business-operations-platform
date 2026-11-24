@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import OrganizationSelectionPage from './pages/OrganizationSelectionPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import AppearanceSwitcher from './components/AppearanceSwitcher';
 import { useAuth } from './context/AuthContext';
 
 function PublicRoute({ children }: { children: ReactNode }) {
@@ -32,60 +33,67 @@ export default function App() {
   const { isAuthenticated, loading } = useAuth();
 
   return (
-    <Routes>
-      {/* Public routes */}
-      <Route
-        path="/"
-        element={
-          <PublicRoute>
-            <LandingPage />
-          </PublicRoute>
-        }
-      />
+    <>
+      {/* Global appearance switcher */}
+      <div className="fixed bottom-6 right-6 z-[100]">
+        <AppearanceSwitcher />
+      </div>
 
-      <Route
-        path="/login"
-        element={
-          <PublicRoute>
-            <LoginPage />
-          </PublicRoute>
-        }
-      />
-
-      <Route
-        path="/register"
-        element={
-          <PublicRoute>
-            <RegisterPage />
-          </PublicRoute>
-        }
-      />
-
-      {/* Protected routes */}
-      <Route element={<ProtectedRoute />}>
+      <Routes>
+        {/* Public routes */}
         <Route
-          path="/organizations"
-          element={<OrganizationSelectionPage />}
+          path="/"
+          element={
+            <PublicRoute>
+              <LandingPage />
+            </PublicRoute>
+          }
         />
 
         <Route
-          path="/workspace/:organizationId"
-          element={<Dashboard />}
+          path="/login"
+          element={
+            <PublicRoute>
+              <LoginPage />
+            </PublicRoute>
+          }
         />
-      </Route>
 
-      {/* Unknown routes */}
-      <Route
-        path="*"
-        element={
-          loading ? null : (
-            <Navigate
-              to={isAuthenticated ? '/organizations' : '/'}
-              replace
-            />
-          )
-        }
-      />
-    </Routes>
+        <Route
+          path="/register"
+          element={
+            <PublicRoute>
+              <RegisterPage />
+            </PublicRoute>
+          }
+        />
+
+        {/* Protected routes */}
+        <Route element={<ProtectedRoute />}>
+          <Route
+            path="/organizations"
+            element={<OrganizationSelectionPage />}
+          />
+
+          <Route
+            path="/workspace/:organizationId"
+            element={<Dashboard />}
+          />
+        </Route>
+
+        {/* Unknown routes */}
+        <Route
+          path="*"
+          element={
+            loading ? null : (
+              <Navigate
+                to={isAuthenticated ? '/organizations' : '/'}
+                replace
+              />
+            )
+          }
+        />
+      </Routes>
+    </>
   );
 }
