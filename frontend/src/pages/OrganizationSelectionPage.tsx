@@ -18,6 +18,7 @@ import {
 
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import AppearanceSwitcher from '../components/AppearanceSwitcher';
 
 interface Organization {
   id: string;
@@ -169,7 +170,9 @@ export default function OrganizationSelectionPage() {
             </div>
           </div>
 
-          <div className="relative">
+          <div className="flex items-center gap-3">
+            <AppearanceSwitcher />
+            <div className="relative">
             <button
               type="button"
               onClick={() => setAccountMenuOpen((open) => !open)}
@@ -211,6 +214,7 @@ export default function OrganizationSelectionPage() {
                 </button>
               </div>
             )}
+            </div>
           </div>
         </div>
       </header>

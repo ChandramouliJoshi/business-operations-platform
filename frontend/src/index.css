@@ -11,9 +11,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 html {
   min-width: 320px;
@@ -29,33 +27,14 @@ body {
   transition: background-color 220ms ease, color 220ms ease;
 }
 
-button,
-input {
-  font: inherit;
-}
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; }
 
-button {
-  cursor: pointer;
-}
+::selection { background: #c7d2fe; color: #312e81; }
 
-::selection {
-  background: #c7d2fe;
-  color: #312e81;
-}
-
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 20px;
-}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 20px; }
 
 /* Nexora dark appearance */
 html[data-theme="dark"] {
@@ -78,16 +57,16 @@ html[data-theme="dark"] header {
   border-color: rgb(71 85 105 / 48%) !important;
 }
 
-/* Tailwind utility overrides used by the existing dashboard and pages */
+/* Cards, panels and form surfaces */
 html[data-theme="dark"] [class~="bg-white"],
-html[data-theme="dark"] [class~="bg-white/85"],
 html[data-theme="dark"] [class*="bg-white/"] {
   background-color: #191d2b !important;
 }
 
 html[data-theme="dark"] [class~="bg-[#f7f8fc]"],
 html[data-theme="dark"] [class~="bg-slate-50"],
-html[data-theme="dark"] [class~="bg-slate-100"] {
+html[data-theme="dark"] [class~="bg-slate-100"],
+html[data-theme="dark"] [class~="bg-slate-200/70"] {
   background-color: #131724 !important;
 }
 
@@ -98,7 +77,8 @@ html[data-theme="dark"] [class~="bg-indigo-50/70"] {
 
 html[data-theme="dark"] [class~="border-slate-200"],
 html[data-theme="dark"] [class~="border-slate-200/80"],
-html[data-theme="dark"] [class~="border-slate-100"] {
+html[data-theme="dark"] [class~="border-slate-100"],
+html[data-theme="dark"] [class~="border-slate-300"] {
   border-color: #30384a !important;
 }
 
@@ -106,35 +86,55 @@ html[data-theme="dark"] [class~="border-indigo-100"] {
   border-color: rgb(99 102 241 / 30%) !important;
 }
 
+/* Readable text across all application pages */
+html[data-theme="dark"] [class~="text-black"],
+html[data-theme="dark"] [class~="text-slate-950"],
 html[data-theme="dark"] [class~="text-slate-900"],
 html[data-theme="dark"] [class~="text-slate-800"],
-html[data-theme="dark"] [class~="text-slate-700"] {
+html[data-theme="dark"] [class~="text-slate-700"],
+html[data-theme="dark"] [class~="text-slate-600"] {
   color: #e5eaf4 !important;
 }
 
-html[data-theme="dark"] [class~="text-slate-600"],
-html[data-theme="dark"] [class~="text-slate-500"] {
+html[data-theme="dark"] [class~="text-slate-500"],
+html[data-theme="dark"] [class~="text-gray-600"],
+html[data-theme="dark"] [class~="text-gray-700"] {
   color: #a5b0c3 !important;
 }
 
-html[data-theme="dark"] [class~="text-slate-400"] {
+html[data-theme="dark"] [class~="text-slate-400"],
+html[data-theme="dark"] [class~="text-gray-400"] {
   color: #8793a8 !important;
 }
 
-html[data-theme="dark"] [class~="hover:bg-slate-50"]:hover,
-html[data-theme="dark"] [class~="hover:bg-slate-100"]:hover {
-  background-color: #242a3a !important;
-}
-
+/* Inputs remain visible in dark mode, including fields without a bg utility */
 html[data-theme="dark"] input,
 html[data-theme="dark"] textarea,
 html[data-theme="dark"] select {
   color: #e5eaf4;
+  background-color: #131724;
+  border-color: #30384a;
 }
 
 html[data-theme="dark"] input::placeholder,
 html[data-theme="dark"] textarea::placeholder {
   color: #77839a;
+  opacity: 1;
+}
+
+html[data-theme="dark"] select option {
+  color: #e5eaf4;
+  background: #191d2b;
+}
+
+html[data-theme="dark"] input[type="checkbox"],
+html[data-theme="dark"] input[type="radio"] {
+  accent-color: #818cf8;
+}
+
+html[data-theme="dark"] [class~="hover:bg-slate-50"]:hover,
+html[data-theme="dark"] [class~="hover:bg-slate-100"]:hover {
+  background-color: #242a3a !important;
 }
 
 html[data-theme="dark"] .recharts-cartesian-grid-horizontal line,
@@ -153,14 +153,10 @@ html[data-theme="dark"] .recharts-tooltip-item {
   color: #e5eaf4 !important;
 }
 
-html[data-theme="dark"] ::-webkit-scrollbar-thumb {
-  background: #3b455a;
-}
+html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #3b455a; }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;

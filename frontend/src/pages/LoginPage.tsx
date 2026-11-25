@@ -1,4 +1,3 @@
-
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
@@ -14,6 +13,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import AppearanceSwitcher from '../components/AppearanceSwitcher';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -26,8 +26,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const redirectTo =
-    location.state?.from?.pathname || '/organizations';
+  const redirectTo = location.state?.from?.pathname || '/organizations';
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -39,9 +38,7 @@ export default function LoginPage() {
       navigate(redirectTo, { replace: true });
     } catch (err) {
       if (axios.isAxiosError(err)) {
-        setError(
-          err.response?.data?.message || 'Invalid email or password.',
-        );
+        setError(err.response?.data?.message || 'Invalid email or password.');
       } else {
         setError('Something went wrong. Please try again.');
       }
@@ -52,6 +49,10 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#11121b] px-4 py-12">
+      <div className="fixed right-5 top-5 z-[200]">
+        <AppearanceSwitcher />
+      </div>
+
       {/* Background decoration */}
       <div className="pointer-events-none absolute -left-40 -top-40 h-[500px] w-[500px] rounded-full bg-indigo-600/20 blur-[120px]" />
       <div className="pointer-events-none absolute -bottom-40 -right-40 h-[500px] w-[500px] rounded-full bg-violet-600/20 blur-[120px]" />
@@ -66,11 +67,7 @@ export default function LoginPage() {
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-950/40">
             <BriefcaseBusiness size={23} />
           </div>
-
-          <h1 className="text-2xl font-bold tracking-tight text-white">
-            Nexora
-          </h1>
-
+          <h1 className="text-2xl font-bold tracking-tight text-white">Nexora</h1>
           <p className="mt-1 text-[10px] font-semibold tracking-[0.24em] text-slate-500">
             BUSINESS OS
           </p>
@@ -88,32 +85,21 @@ export default function LoginPage() {
               <Sparkles size={12} />
               Welcome back
             </div>
-
             <h2 className="text-2xl font-bold tracking-tight text-slate-900">
               Sign in to Nexora
             </h2>
-
             <p className="mt-2 text-sm text-slate-500">
               Enter your credentials to access your workspace.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email */}
             <div>
-              <label
-                htmlFor="email"
-                className="mb-2 block text-xs font-semibold text-slate-700"
-              >
+              <label htmlFor="email" className="mb-2 block text-xs font-semibold text-slate-700">
                 Email address
               </label>
-
               <div className="relative">
-                <Mail
-                  size={17}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-
+                <Mail size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   id="email"
                   type="email"
@@ -127,30 +113,17 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Password */}
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <label
-                  htmlFor="password"
-                  className="text-xs font-semibold text-slate-700"
-                >
+                <label htmlFor="password" className="text-xs font-semibold text-slate-700">
                   Password
                 </label>
-
-                <Link
-                  to="/forgot-password"
-                  className="text-xs font-semibold text-indigo-600 transition hover:text-indigo-800"
-                >
+                <Link to="/forgot-password" className="text-xs font-semibold text-indigo-600 transition hover:text-indigo-800">
                   Forgot password?
                 </Link>
               </div>
-
               <div className="relative">
-                <LockKeyhole
-                  size={17}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-
+                <LockKeyhole size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
@@ -161,7 +134,6 @@ export default function LoginPage() {
                   placeholder="Enter your password"
                   className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-11 pr-12 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
                 />
-
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -173,17 +145,12 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Error */}
             {error && (
-              <div
-                role="alert"
-                className="rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-3 text-xs font-medium text-rose-600"
-              >
+              <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-3 text-xs font-medium text-rose-600">
                 {error}
               </div>
             )}
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
@@ -205,9 +172,7 @@ export default function LoginPage() {
 
           <div className="my-6 flex items-center gap-3">
             <div className="h-px flex-1 bg-slate-200" />
-            <span className="text-[10px] font-medium text-slate-400">
-              NEW TO NEXORA?
-            </span>
+            <span className="text-[10px] font-medium text-slate-400">NEW TO NEXORA?</span>
             <div className="h-px flex-1 bg-slate-200" />
           </div>
 
@@ -219,12 +184,10 @@ export default function LoginPage() {
           </Link>
         </motion.div>
 
-        {/* Footer */}
         <div className="mt-6 flex items-center justify-center gap-2 text-[11px] text-slate-500">
           <ShieldCheck size={14} />
           Secure access to your business workspace
         </div>
-
         <p className="mt-5 text-center text-[10px] text-slate-600">
           © 2026 Nexora Business OS. All rights reserved.
         </p>

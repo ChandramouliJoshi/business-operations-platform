@@ -17,6 +17,7 @@ import {
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import PasswordStrength from '../components/PasswordStrength.tsx';
+import AppearanceSwitcher from '../components/AppearanceSwitcher';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -78,6 +79,9 @@ export default function RegisterPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#11121b] px-4 py-10">
+      <div className="fixed right-5 top-5 z-[200]">
+        <AppearanceSwitcher />
+      </div>
       {/* Background decoration */}
       <div className="pointer-events-none absolute -left-40 -top-40 h-[500px] w-[500px] rounded-full bg-indigo-600/20 blur-[120px]" />
       <div className="pointer-events-none absolute -bottom-40 -right-40 h-[500px] w-[500px] rounded-full bg-violet-600/20 blur-[120px]" />

@@ -20,6 +20,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import AppearanceSwitcher from "../components/AppearanceSwitcher";
 
 type ProjectStatus = "In Progress" | "Planning" | "In Review" | "Completed";
 type ProjectPriority = "High" | "Medium" | "Low";
@@ -681,7 +682,10 @@ export default function ProjectsPage() {
   const statusTabs = ["All", "In Progress", "Planning", "In Review", "Completed"];
 
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-6">
+      <div className="fixed right-5 top-5 z-[90]">
+        <AppearanceSwitcher />
+      </div>
       <AnimatePresence mode="wait">
         {selectedProject ? (
           <ProjectWorkspace key={selectedProject.id} project={selectedProject} onBack={() => setSelectedProjectId(null)} onToggleTask={toggleTask}/>
