@@ -16,6 +16,8 @@ import { TasksService } from './tasks.service.js';
 import { JwtAuthGuard } from '../auth/jwt/jwt.guard.js';
 import { RequirePermission } from '../organizations/permissions/permissions.decorator.js';
 import { PermissionsGuard } from '../organizations/permissions/permissions.guard.js';
+import { CreateTaskDto } from './dto/create-task.dto.js';
+import { UpdateTaskDto } from './dto/update-task.dto.js';
 
 @Controller('organizations/:organizationId/projects/:projectId/tasks')
 export class TasksController {
@@ -29,15 +31,7 @@ export class TasksController {
   async createTask(
     @Param('organizationId') organizationId: string,
     @Param('projectId') projectId: string,
-    @Body()
-    body: {
-      title: string;
-      description?: string;
-      assignedTo?: string;
-      status?: string;
-      priority?: string;
-      deadline?: string;
-    },
+    @Body() body: CreateTaskDto,
     @Req() req: any,
   ) {
     return this.tasksService.createTask(
@@ -73,15 +67,7 @@ export class TasksController {
     @Param('organizationId') organizationId: string,
     @Param('projectId') projectId: string,
     @Param('taskId') taskId: string,
-    @Body()
-    body: {
-      title?: string;
-      description?: string;
-      assignedTo?: string | null;
-      status?: string;
-      priority?: string;
-      deadline?: string | null;
-    },
+    @Body() body: UpdateTaskDto,
     @Req() req: any,
   ) {
     return this.tasksService.updateTask(

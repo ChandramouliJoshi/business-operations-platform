@@ -14,6 +14,7 @@ import { RequestsModule } from './requests/requests.module.js';
 import { ApprovalsModule } from './approvals/approvals.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { AuditLogsModule } from './audit-logs/audit-logs.module.js';
+import { AnalyticsModule } from './analytics/analytics.module.js';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { AuditLogsModule } from './audit-logs/audit-logs.module.js';
     ApprovalsModule,
     NotificationsModule,
     AuditLogsModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

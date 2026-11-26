@@ -13,7 +13,9 @@ if (!existsSync(testEnvPath) || !existsSync(devEnvPath)) {
 const testEnv = dotenv.parse(readFileSync(testEnvPath));
 const devEnv = dotenv.parse(readFileSync(devEnvPath));
 
-if (!testEnv.DATABASE_URL || !devEnv.DATABASE_URL) {
+const runtimeDatabaseUrl = process.env.NEXORA_E2E_DATABASE_URL ?? testEnv.DATABASE_URL;
+
+if (!runtimeDatabaseUrl || !devEnv.DATABASE_URL) {
   throw new Error('DATABASE_URL is missing.');
 }
 
@@ -21,7 +23,7 @@ if (testEnv.NODE_ENV !== 'test') {
   throw new Error('NODE_ENV must be set to test.');
 }
 
-const testUrl = new URL(testEnv.DATABASE_URL);
+const testUrl = new URL(runtimeDatabaseUrl);
 const devUrl = new URL(devEnv.DATABASE_URL);
 
 function getSupabaseProjectRef(url) {
@@ -46,22 +48,26 @@ if (!['postgres:', 'postgresql:'].includes(testUrl.protocol)) {
 
 const testProjectRef = getSupabaseProjectRef(testUrl);
 const devProjectRef = getSupabaseProjectRef(devUrl);
+const sameDatabase =
+  testUrl.hostname === devUrl.hostname &&
+  testUrl.port === devUrl.port &&
+  testUrl.pathname === devUrl.pathname;
 
-if (!testProjectRef || !devProjectRef) {
-  throw new Error('Could not verify Supabase project references.');
-}
-
-if (testProjectRef === devProjectRef) {
+if (sameDatabase || (testProjectRef && devProjectRef && testProjectRef === devProjectRef)) {
   throw new Error('SAFETY BLOCK: Test and development projects match.');
 }
 
-if (testUrl.pathname !== '/postgres') {
-  throw new Error('Unexpected test database name.');
+if (testUrl.hostname === 'localhost' || testUrl.hostname === '127.0.0.1' || testUrl.hostname === '::1') {
+  if (testUrl.pathname === '/postgres') {
+    throw new Error('Unexpected local test database name. Use a dedicated database such as nexora_test.');
+  }
+} else if (testProjectRef && testUrl.pathname !== '/postgres') {
+  throw new Error('Unexpected Supabase test database name.');
 }
 
 console.log('Database isolation verified.');
-console.log('Test project:', testProjectRef);
-console.log('Development project:', devProjectRef);
+console.log('Test target:', `${testUrl.hostname}${testUrl.pathname}`);
+console.log('Development target:', `${devUrl.hostname}${devUrl.pathname}`);
 console.log('Deploying Prisma schema to test database...');
 
 const result = spawnSync(
@@ -73,7 +79,7 @@ const result = spawnSync(
     env: {
       ...process.env,
       ...testEnv,
-      DATABASE_URL: testEnv.DATABASE_URL,
+      DATABASE_URL: runtimeDatabaseUrl,
       NODE_ENV: 'test',
     },
   },

@@ -1,6 +1,7 @@
 
 import {
   IsNotEmpty,
+  IsOptional,
   IsString,
   IsUUID,
   MaxLength,
@@ -17,4 +18,8 @@ export class CreateWorkflowTransitionDto {
   @IsNotEmpty()
   @MaxLength(100)
   name: string;
+
+  @IsOptional()
+  @IsUUID()
+  allowed_role_id?: string;
 }

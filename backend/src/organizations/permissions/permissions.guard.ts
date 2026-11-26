@@ -50,6 +50,7 @@ export class PermissionsGuard implements CanActivate {
         select: {
           roles: {
             select: {
+              name: true,
               role_permissions: {
                 select: {
                   permissions: {
@@ -75,6 +76,10 @@ export class PermissionsGuard implements CanActivate {
         (rolePermission) =>
           rolePermission.permissions.name === permission,
       );
+
+    // Owners are the organization recovery role. This also keeps existing
+    // organizations usable when new granular permissions are introduced.
+    if (member.roles.name.toLowerCase() === 'owner') return true;
 
     if (!hasPermission) {
       throw new ForbiddenException(

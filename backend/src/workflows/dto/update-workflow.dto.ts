@@ -1,6 +1,7 @@
 
 import {
   IsOptional,
+  IsBoolean,
   IsString,
   MaxLength,
   IsNotEmpty,
@@ -22,4 +23,8 @@ export class UpdateWorkflowDto {
   @IsNotEmpty()
   @MaxLength(100)
   entity_type?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  is_active?: boolean;
 }

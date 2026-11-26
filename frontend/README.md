@@ -1,5 +1,16 @@
 # React + TypeScript + Vite
 
+## Nexora production configuration
+
+Set `VITE_API_URL` to the public HTTPS backend origin. Do not put secrets in frontend environment variables; Vite embeds `VITE_*` values into the browser bundle.
+
+```bash
+npm ci
+npm run build
+```
+
+Serve the generated `dist` directory through the deployment's static hosting/CDN with HTTPS and route fallback to `index.html`.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

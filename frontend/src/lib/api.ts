@@ -19,4 +19,17 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// A rejected token must end the client session as well as the API request.
+// AuthContext listens for this event so protected routes cannot remain visible.
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      sessionStorage.removeItem('nexora_access_token');
+      window.dispatchEvent(new Event('nexora:session-expired'));
+    }
+    return Promise.reject(error);
+  },
+);
+
 export default api;

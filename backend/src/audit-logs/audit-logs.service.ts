@@ -32,20 +32,23 @@ export class AuditLogsService {
       userId?: string;
       action?: string;
       entityType?: string;
+      search?: string;
+      page?: number;
+      limit?: number;
     },
   ) {
-    return this.prisma.audit_logs.findMany({
+    const safeLimit = Math.min(Math.max(filters?.limit ?? 25, 1), 100);
+    const safePage = Math.max(filters?.page ?? 1, 1);
+    const where = {
+      organization_id: organizationId,
+      ...(filters?.userId && { user_id: filters.userId }),
+      ...(filters?.action && { action: filters.action }),
+      ...(filters?.entityType && { entity_type: filters.entityType }),
+      ...(filters?.search && { OR: [{ action: { contains: filters.search, mode: 'insensitive' as const } }, { entity_type: { contains: filters.search, mode: 'insensitive' as const } }] }),
+    };
+    const [items, total] = await Promise.all([this.prisma.audit_logs.findMany({
       where: {
-        organization_id: organizationId,
-        ...(filters?.userId && {
-          user_id: filters.userId,
-        }),
-        ...(filters?.action && {
-          action: filters.action,
-        }),
-        ...(filters?.entityType && {
-          entity_type: filters.entityType,
-        }),
+        ...where,
       },
       include: {
         users: {
@@ -59,7 +62,10 @@ export class AuditLogsService {
       orderBy: {
         created_at: 'desc',
       },
-    });
+      skip: (safePage - 1) * safeLimit,
+      take: safeLimit,
+    }), this.prisma.audit_logs.count({ where })]);
+    return { items, page: safePage, limit: safeLimit, total };
   }
 
   // Get audit history for a particular entity.

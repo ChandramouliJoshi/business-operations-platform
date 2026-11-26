@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Patch,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -21,9 +22,11 @@ export class NotificationsController {
 
   // Get all notifications for the logged-in user.
   @Get()
-  getNotifications(@Req() req: any) {
+  getNotifications(@Req() req: any, @Query('page') page?: string, @Query('limit') limit?: string) {
     return this.notificationsService.getNotifications(
       req.user.userId,
+      page ? Number(page) : undefined,
+      limit ? Number(limit) : undefined,
     );
   }
 

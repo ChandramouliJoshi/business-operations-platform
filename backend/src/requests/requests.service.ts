@@ -100,6 +100,7 @@ export class RequestsService {
         'Workflow not found in this organization',
       );
     }
+    if (!workflow.is_active) throw new ConflictException('This workflow is inactive and cannot accept new requests');
 
     const initialStates =
       await this.prisma.workflow_states.findMany({
@@ -161,6 +162,9 @@ export class RequestsService {
         },
       });
 
+      const recipients = await tx.organization_members.findMany({ where: { organization_id: organizationId, status: 'active', user_id: { not: userId } }, select: { user_id: true } });
+      if (recipients.length) await tx.notifications.createMany({ data: recipients.map((recipient) => ({ user_id: recipient.user_id, type: 'request.submitted', title: 'New internal request', message: `A new request “${request.title}” was submitted.` })) });
+
       return request;
     });
   }
@@ -204,10 +208,12 @@ export class RequestsService {
     organizationId: string,
     requestId: string,
   ) {
-    return this.validateRequest(
+    const request = await this.validateRequest(
       organizationId,
       requestId,
     );
+    const history = await this.prisma.audit_logs.findMany({ where: { organization_id: organizationId, entity_type: 'request', entity_id: requestId }, orderBy: { created_at: 'asc' }, include: { users: { select: { id: true, name: true, email: true } } } });
+    return { ...request, history };
   }
 
   // Update request details
@@ -240,6 +246,10 @@ export class RequestsService {
       if (!existingRequest) {
         throw new NotFoundException('Request not found');
       }
+
+      if (existingRequest.created_by !== userId) throw new ForbiddenException('Only the requester can edit this request');
+      const currentState = await tx.workflow_states.findUnique({ where: { id: existingRequest.current_state_id } });
+      if (!currentState || currentState.is_final) throw new ConflictException('This request can no longer be edited in its current state');
 
       const updatedRequest = await tx.requests.update({
         where: {
@@ -296,6 +306,7 @@ export class RequestsService {
         },
         include: {
           workflow_states: true,
+          workflows: { select: { is_active: true } },
         },
       });
 
@@ -308,6 +319,7 @@ export class RequestsService {
           'This request has already reached its final state',
         );
       }
+      if (!request.workflows.is_active) throw new ConflictException('This workflow is inactive');
 
       if (request.current_state_id === toStateId) {
         throw new BadRequestException(
@@ -342,6 +354,11 @@ export class RequestsService {
         throw new BadRequestException(
           'This transition is not allowed by the workflow',
         );
+      }
+
+      if (transition.allowed_role_id) {
+        const membership = await tx.organization_members.findFirst({ where: { organization_id: organizationId, user_id: userId, status: 'active' }, select: { role_id: true } });
+        if (!membership || membership.role_id !== transition.allowed_role_id) throw new ForbiddenException('Your role cannot perform this transition');
       }
 
       // Prevent concurrent transitions from overwriting each other
@@ -398,7 +415,19 @@ export class RequestsService {
         },
       });
 
+      const recipients = await tx.organization_members.findMany({ where: { organization_id: organizationId, status: 'active', user_id: { not: request.created_by } }, select: { user_id: true } });
+      if (recipients.length) await tx.notifications.createMany({ data: recipients.map((recipient) => ({ user_id: recipient.user_id, type: 'request.updated', title: 'Request status updated', message: `Request “${request.title}” moved to ${targetState.name}.` })) });
+
       return updatedRequest;
     });
+  }
+
+  async cancelRequest(organizationId: string, requestId: string, userId: string) {
+    const request = await this.validateRequest(organizationId, requestId);
+    if (request.created_by !== userId) throw new ForbiddenException('Only the requester can cancel this request');
+    if (request.workflow_states.is_final) throw new ConflictException('This request is already complete');
+    const cancelState = await this.prisma.workflow_states.findFirst({ where: { workflow_id: request.workflow_id, is_final: true, name: { contains: 'cancel', mode: 'insensitive' } } });
+    if (!cancelState) throw new BadRequestException('This workflow has no final Cancelled state');
+    return this.transitionRequest(organizationId, requestId, userId, cancelState.id);
   }
 }

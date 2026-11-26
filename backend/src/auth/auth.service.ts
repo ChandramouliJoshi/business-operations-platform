@@ -16,6 +16,8 @@ export class AuthService {
   ) {}
 
   async register(name: string, email: string, password: string) {
+    email = email.trim().toLowerCase();
+    name = name.trim();
     const existingUser = await this.prisma.users.findUnique({
       where: { email },
     });
@@ -56,6 +58,7 @@ export class AuthService {
   }
 
   async login(email: string, password: string) {
+    email = email.trim().toLowerCase();
     const user = await this.prisma.users.findUnique({
       where: { email },
     });

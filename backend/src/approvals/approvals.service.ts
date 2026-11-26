@@ -147,6 +147,8 @@ export class ApprovalsService {
         },
       });
 
+      await tx.notifications.create({ data: { user_id: dto.approver_id, type: 'approval.required', title: 'Approval required', message: `Review request “${request.title}”.` } });
+
       return approval;
     });
   }
@@ -174,6 +176,7 @@ export class ApprovalsService {
             id: true,
             title: true,
             current_state_id: true,
+            workflow_id: true,
           },
         },
       },
@@ -263,6 +266,16 @@ export class ApprovalsService {
         );
       }
 
+      let transitionTarget = dto.to_state_id;
+      if (!transitionTarget) {
+        const current = await tx.requests.findUnique({ where: { id: approval.request_id }, select: { workflow_id: true } });
+        const candidate = current ? await tx.workflow_states.findFirst({ where: { workflow_id: current.workflow_id, name: { contains: dto.status, mode: 'insensitive' } } }) : null;
+        transitionTarget = candidate?.id;
+      }
+      if (!transitionTarget) throw new BadRequestException('Approval decision requires a valid target workflow state');
+      const transition = await tx.workflow_transitions.findFirst({ where: { workflow_id: (await tx.requests.findUnique({ where: { id: approval.request_id }, select: { workflow_id: true } }))!.workflow_id, from_state_id: approval.requests.current_state_id, to_state_id: transitionTarget } });
+      if (!transition) throw new BadRequestException('Approval decision does not match a valid workflow transition');
+
       // Only update if the approval is still pending.
       // This prevents concurrent decisions from overwriting each other.
       const result = await tx.approvals.updateMany({
@@ -328,6 +341,10 @@ export class ApprovalsService {
           },
         },
       });
+
+      await tx.requests.updateMany({ where: { id: approval.request_id, current_state_id: approval.requests.current_state_id }, data: { current_state_id: transitionTarget, updated_at: new Date() } });
+      await tx.audit_logs.create({ data: { organization_id: organizationId, user_id: userId, action: 'request.transitioned', entity_type: 'request', entity_id: approval.request_id, metadata: { from_state_id: approval.requests.current_state_id, to_state_id: transitionTarget, reason: action } } });
+      await tx.notifications.create({ data: { user_id: (await tx.requests.findUnique({ where: { id: approval.request_id }, select: { created_by: true } }))!.created_by, type: action, title: dto.status === 'approved' ? 'Request approved' : 'Request rejected', message: `Request “${approval.requests.title}” was ${dto.status}.` } });
 
       return updatedApproval;
     });

@@ -28,6 +28,9 @@ export class AuditLogsController {
     @Query('userId') userId?: string,
     @Query('action') action?: string,
     @Query('entityType') entityType?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
     return this.auditLogsService.getOrganizationLogs(
       organizationId,
@@ -35,6 +38,9 @@ export class AuditLogsController {
         userId,
         action,
         entityType,
+        search,
+        page: page ? Number(page) : undefined,
+        limit: limit ? Number(limit) : undefined,
       },
     );
   }

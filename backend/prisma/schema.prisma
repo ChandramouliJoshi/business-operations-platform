@@ -183,6 +183,7 @@ model roles {
   created_at           DateTime               @default(now()) @db.Timestamp(6)
   organization_members organization_members[]
   role_permissions     role_permissions[]
+  workflow_transitions_allowed_role_idToroles workflow_transitions[] @relation("workflow_transitions_allowed_role_idToroles")
   organizations        organizations          @relation(fields: [organization_id], references: [id], onUpdate: NoAction, map: "fk_roles_organization")
 
   @@unique([organization_id, name], map: "uq_roles_organization_name")
@@ -256,15 +257,18 @@ model workflow_transitions {
   from_state_id                                                       String          @db.Uuid
   to_state_id                                                         String          @db.Uuid
   name                                                                String          @db.VarChar(100)
+  allowed_role_id                                                     String?         @db.Uuid
   created_at                                                          DateTime        @default(now()) @db.Timestamp(6)
   workflow_states_workflow_transitions_from_state_idToworkflow_states workflow_states @relation("workflow_transitions_from_state_idToworkflow_states", fields: [from_state_id], references: [id], onUpdate: NoAction, map: "fk_transitions_from_state")
   workflow_states_workflow_transitions_to_state_idToworkflow_states   workflow_states @relation("workflow_transitions_to_state_idToworkflow_states", fields: [to_state_id], references: [id], onUpdate: NoAction, map: "fk_transitions_to_state")
   workflows                                                           workflows       @relation(fields: [workflow_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_transitions_workflow")
+  roles                                                               roles?          @relation("workflow_transitions_allowed_role_idToroles", fields: [allowed_role_id], references: [id], onUpdate: NoAction, map: "fk_transitions_allowed_role")
 
   @@unique([workflow_id, from_state_id, to_state_id], map: "uq_workflow_transition")
   @@index([from_state_id], map: "idx_transitions_from_state")
   @@index([to_state_id], map: "idx_transitions_to_state")
   @@index([workflow_id], map: "idx_transitions_workflow_id")
+  @@index([allowed_role_id], map: "idx_transitions_allowed_role_id")
 }
 
 model workflows {
@@ -276,6 +280,7 @@ model workflows {
   created_by           String                 @db.Uuid
   created_at           DateTime               @default(now()) @db.Timestamp(6)
   updated_at           DateTime               @default(now()) @db.Timestamp(6)
+  is_active            Boolean                @default(true)
   requests             requests[]
   workflow_states      workflow_states[]
   workflow_transitions workflow_transitions[]

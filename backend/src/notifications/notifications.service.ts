@@ -25,15 +25,24 @@ export class NotificationsService {
   }
 
   // Get all notifications belonging to the logged-in user.
-  async getNotifications(userId: string) {
-    return this.prisma.notifications.findMany({
+  async getNotifications(userId: string, page = 1, limit = 25) {
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const safePage = Math.max(page, 1);
+    const [items, total, unread] = await Promise.all([
+      this.prisma.notifications.findMany({
       where: {
         user_id: userId,
       },
       orderBy: {
         created_at: 'desc',
       },
-    });
+      skip: (safePage - 1) * safeLimit,
+      take: safeLimit,
+      }),
+      this.prisma.notifications.count({ where: { user_id: userId } }),
+      this.prisma.notifications.count({ where: { user_id: userId, is_read: false } }),
+    ]);
+    return { items, page: safePage, limit: safeLimit, total, unread };
   }
 
   // Get unread notifications belonging to the logged-in user.

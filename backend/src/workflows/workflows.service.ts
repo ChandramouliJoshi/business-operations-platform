@@ -143,6 +143,7 @@ export class WorkflowsService {
     name?: string,
     description?: string,
     entityType?: string,
+    isActive?: boolean,
   ) {
     const workflow = await this.prisma.workflows.findFirst({
       where: {
@@ -155,6 +156,11 @@ export class WorkflowsService {
       throw new NotFoundException(
         'Workflow not found in this organization',
       );
+    }
+
+    if (isActive === false && workflow.is_active) {
+      const inProgress = await this.prisma.requests.findFirst({ where: { workflow_id: workflowId, workflow_states: { is_final: false } }, select: { id: true } });
+      if (inProgress) throw new ConflictException('Cannot deactivate a workflow used by an in-progress request');
     }
 
     if (name && name !== workflow.name) {
@@ -183,6 +189,7 @@ export class WorkflowsService {
           name,
           description,
           entity_type: entityType,
+          ...(isActive !== undefined && { is_active: isActive }),
         },
       });
 

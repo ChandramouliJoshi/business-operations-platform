@@ -84,6 +84,7 @@ export class WorkflowsController {
       body.name,
       body.description,
       body.entity_type,
+      body.is_active,
     );
   }
 

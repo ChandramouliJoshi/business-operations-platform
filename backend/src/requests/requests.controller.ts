@@ -103,4 +103,10 @@ export class RequestsController {
       body.to_state_id,
     );
   }
+
+  @Post(':requestId/cancel')
+  @RequirePermission('requests.update')
+  cancelRequest(@Param('organizationId') organizationId: string, @Param('requestId') requestId: string, @Req() req: any) {
+    return this.requestsService.cancelRequest(organizationId, requestId, req.user.userId);
+  }
 }

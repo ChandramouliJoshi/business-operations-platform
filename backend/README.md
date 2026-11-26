@@ -105,6 +105,25 @@ Check out a few resources that may come in handy when working with NestJS:
 
 ## Support
 
+## Nexora production configuration
+
+Required environment variables:
+
+- `DATABASE_URL`: PostgreSQL connection string for the runtime database.
+- `JWT_SECRET`: long, random secret stored in the deployment secret manager; never commit it.
+- `FRONTEND_URL`: exact frontend origin allowed by CORS, for example `https://app.example.com`.
+- `PORT`: optional listen port.
+
+Build and run:
+
+```bash
+npm ci
+npm run build
+npm run start:prod
+```
+
+Use `GET /health` for a lightweight application/database health check. Apply the reviewed workflow-controls SQL from `docs/DATABASE_MIGRATIONS.md` only after establishing the existing database's Prisma baseline and validating it in staging.
+
 Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
 
 ## Stay in touch

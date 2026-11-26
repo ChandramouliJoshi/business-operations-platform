@@ -12,8 +12,11 @@ if (!existsSync(testEnvPath)) {
 
 // Load test environment before importing application modules.
 const testEnv = dotenv.parse(readFileSync(testEnvPath));
+// CI/local runs may inject a disposable database without modifying the
+// developer's ignored .env.test.local file.
+const runtimeDatabaseUrl = process.env.NEXORA_E2E_DATABASE_URL ?? testEnv.DATABASE_URL;
 
-if (!testEnv.DATABASE_URL) {
+if (!runtimeDatabaseUrl) {
   throw new Error('DATABASE_URL is missing from .env.test.local.');
 }
 
@@ -21,7 +24,7 @@ if (testEnv.NODE_ENV !== 'test') {
   throw new Error('NODE_ENV must be set to test.');
 }
 
-const testUrl = new URL(testEnv.DATABASE_URL);
+const testUrl = new URL(runtimeDatabaseUrl);
 
 if (!['postgres:', 'postgresql:'].includes(testUrl.protocol)) {
   throw new Error('Test database must use PostgreSQL.');
@@ -50,6 +53,9 @@ dotenv.config({
   path: testEnvPath,
   override: true,
 });
+if (process.env.NEXORA_E2E_DATABASE_URL) {
+  process.env.DATABASE_URL = process.env.NEXORA_E2E_DATABASE_URL;
+}
 
 export default defineConfig({
   plugins: [tsconfigPaths()],

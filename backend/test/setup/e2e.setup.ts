@@ -8,7 +8,7 @@ import { join } from 'node:path';
 const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
-  throw new Error('Test DATABASE_URL is not configured.');
+  throw new Error('Test DATABASE_URL is not configured. Set NEXORA_E2E_DATABASE_URL or configure backend/.env.test.local.');
 }
 
 let parsedUrl: URL;
@@ -25,6 +25,8 @@ if (
 ) {
   throw new Error('Test DATABASE_URL must be a PostgreSQL connection URL.');
 }
+
+console.info(`E2E database target: ${parsedUrl.hostname}${parsedUrl.pathname}`);
 
 if (process.env.NODE_ENV !== 'test') {
   throw new Error('Integration tests must run with NODE_ENV=test.');

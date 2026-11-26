@@ -149,7 +149,7 @@ export class TasksService {
     taskId: string,
     userId: string,
     title?: string,
-    description?: string,
+    description?: string | null,
     assignedTo?: string | null,
     status?: string,
     priority?: string,

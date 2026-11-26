@@ -89,6 +89,11 @@ export class WorkflowTransitionsService {
       (state) => state.id === dto.to_state_id,
     );
 
+    if (dto.allowed_role_id) {
+      const role = await this.prisma.roles.findFirst({ where: { id: dto.allowed_role_id, organization_id: organizationId }, select: { id: true } });
+      if (!role) throw new NotFoundException('Transition role not found in this organization');
+    }
+
     try {
       return await this.prisma.$transaction(async (tx) => {
         const transition = await tx.workflow_transitions.create({
@@ -97,6 +102,7 @@ export class WorkflowTransitionsService {
             from_state_id: dto.from_state_id,
             to_state_id: dto.to_state_id,
             name: dto.name,
+            allowed_role_id: dto.allowed_role_id,
           },
         });
 

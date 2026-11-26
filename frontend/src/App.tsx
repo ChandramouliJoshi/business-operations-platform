@@ -9,6 +9,7 @@ import RegisterPage from './pages/RegisterPage';
 import OrganizationSelectionPage from './pages/OrganizationSelectionPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppearanceSwitcher from './components/AppearanceSwitcher';
+import NotificationsPage from './pages/NotificationsPage';
 import { useAuth } from './context/AuthContext';
 
 function PublicRoute({ children }: { children: ReactNode }) {
@@ -79,6 +80,8 @@ export default function App() {
             path="/workspace/:organizationId"
             element={<Dashboard />}
           />
+
+          <Route path="/notifications" element={<NotificationsPage />} />
         </Route>
 
         {/* Unknown routes */}

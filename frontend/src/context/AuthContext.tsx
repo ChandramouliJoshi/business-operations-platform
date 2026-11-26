@@ -40,6 +40,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Validate an existing session when the application loads.
   useEffect(() => {
+    const handleSessionExpired = () => setUser(null);
+    window.addEventListener('nexora:session-expired', handleSessionExpired);
+
     const validateSession = async () => {
       const token = sessionStorage.getItem(TOKEN_KEY);
 
@@ -60,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     validateSession();
+    return () => window.removeEventListener('nexora:session-expired', handleSessionExpired);
   }, []);
 
   // Log in and retrieve the authenticated user.

@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  IsUUID,
 } from 'class-validator';
 
 export class UpdateApprovalDecisionDto {
@@ -14,4 +15,8 @@ export class UpdateApprovalDecisionDto {
   @IsString()
   @MaxLength(500)
   comment?: string;
+
+  @IsOptional()
+  @IsUUID()
+  to_state_id?: string;
 }

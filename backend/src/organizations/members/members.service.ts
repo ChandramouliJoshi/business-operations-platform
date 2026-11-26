@@ -6,6 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { UpdateMemberDto } from './dto/update-member.dto.js';
 
 @Injectable()
 export class MembersService {
@@ -201,5 +202,48 @@ export class MembersService {
         joined_at: 'asc',
       },
     });
+  }
+
+  async getMember(organizationId: string, memberId: string) {
+    const member = await this.prisma.organization_members.findFirst({
+      where: { id: memberId, organization_id: organizationId },
+      select: { id: true, organization_id: true, user_id: true, role_id: true, department_id: true, status: true, joined_at: true, users: { select: { id: true, name: true, email: true } }, roles: { select: { id: true, name: true, description: true } }, departments: { select: { id: true, name: true } } },
+    });
+    if (!member) throw new NotFoundException('Member not found in this organization');
+    return member;
+  }
+
+  async updateMember(organizationId: string, memberId: string, actorId: string, dto: UpdateMemberDto) {
+    const member = await this.prisma.organization_members.findFirst({ where: { id: memberId, organization_id: organizationId }, include: { roles: true } });
+    if (!member) throw new NotFoundException('Member not found in this organization');
+    if (dto.roleId) {
+      const role = await this.prisma.roles.findFirst({ where: { id: dto.roleId, organization_id: organizationId } });
+      if (!role) throw new NotFoundException('Role not found in this organization');
+      if (member.roles.name.toLowerCase() === 'owner' && role.name.toLowerCase() !== 'owner') await this.assertNotLastOwner(organizationId, memberId);
+    }
+    if (dto.departmentId) {
+      const department = await this.prisma.departments.findFirst({ where: { id: dto.departmentId, organization_id: organizationId }, select: { id: true } });
+      if (!department) throw new NotFoundException('Department not found in this organization');
+    }
+    const updated = await this.prisma.organization_members.update({ where: { id: memberId }, data: { ...(dto.roleId !== undefined && { role_id: dto.roleId }), ...(dto.departmentId !== undefined && { department_id: dto.departmentId }), ...(dto.status !== undefined && { status: dto.status }) }, select: { id: true, user_id: true, role_id: true, department_id: true, status: true, users: { select: { id: true, name: true, email: true } }, roles: { select: { id: true, name: true } }, departments: { select: { id: true, name: true } } } });
+    await this.prisma.audit_logs.create({ data: { organization_id: organizationId, user_id: actorId, action: 'member.updated', entity_type: 'organization_member', entity_id: memberId, metadata: { updated_fields: Object.keys(dto) } } });
+    return updated;
+  }
+
+  async removeMember(organizationId: string, memberId: string, actorId: string) {
+    const member = await this.prisma.organization_members.findFirst({ where: { id: memberId, organization_id: organizationId }, include: { roles: true } });
+    if (!member) throw new NotFoundException('Member not found in this organization');
+    if (member.roles.name.toLowerCase() === 'owner') await this.assertNotLastOwner(organizationId, memberId);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.audit_logs.create({ data: { organization_id: organizationId, user_id: actorId, action: 'member.removed', entity_type: 'organization_member', entity_id: memberId, metadata: { user_id: member.user_id } } });
+      await tx.organization_members.delete({ where: { id: memberId } });
+    });
+    return { message: 'Member removed successfully' };
+  }
+
+  private async assertNotLastOwner(organizationId: string, memberId: string) {
+    const ownerCount = await this.prisma.organization_members.count({ where: { organization_id: organizationId, status: 'active', roles: { name: { equals: 'Owner', mode: 'insensitive' } } } });
+    if (ownerCount <= 1) throw new ForbiddenException('An organization must retain at least one active Owner');
+    return memberId;
   }
 }

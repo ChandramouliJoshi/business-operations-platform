@@ -7,7 +7,7 @@ describe('WorkflowTransitionsController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [WorkflowTransitionsController],
-    }).compile();
+    }).useMocker(() => ({})).compile();
 
     controller = module.get<WorkflowTransitionsController>(WorkflowTransitionsController);
   });
