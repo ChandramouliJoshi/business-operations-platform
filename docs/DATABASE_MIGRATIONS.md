@@ -24,7 +24,7 @@ The repository did not contain a prior Prisma migration history when audited. Do
 5. Verify existing workflows, transitions, requests and role relationships.
 6. Apply during a reviewed maintenance window, then run smoke tests.
 
-No migration, reset, `db push`, or production database write was executed during this increment.
+The prepared production migration was not executed, and no database reset or production database write was performed. `prisma db push` was executed only against the isolated local E2E database documented below.
 
 ## E2E database
 
@@ -37,6 +37,10 @@ npm run test:e2e
 ```
 
 The E2E configuration rejects non-PostgreSQL URLs and refuses a target matching the development database. Cleanup is scoped to records created by each suite.
+
+### Final verification result
+
+PostgreSQL 18.6 was running locally at `localhost:5432/nexora_e2e_test`. The database isolation check passed, `npm run db:push:test` completed successfully against that dedicated database, and all five E2E suites passed with 28/28 tests. Backend unit tests passed 43/43 across 33 files; backend and frontend production builds and Prisma schema validation also passed.
 
 ### Disposable PostgreSQL options
 
@@ -51,4 +55,4 @@ npm run test:e2e
 docker stop nexora-e2e-postgres
 ```
 
-This procedure must only be used when Docker is connected to its local engine. On the final verification workstation, Docker Desktop's Linux engine was unavailable and port 5432 had no PostgreSQL listener, so these commands were not run. A CI service container or separately provisioned disposable PostgreSQL instance can be substituted; its connection string must be supplied through `NEXORA_E2E_DATABASE_URL` and must not match either development or production configuration.
+This procedure must only be used when Docker is connected to its local engine. The final verification used the separately provisioned local PostgreSQL 18.6 database at `localhost:5432/nexora_e2e_test`; all five E2E suites passed with 28/28 tests. A CI service container or separately provisioned disposable PostgreSQL instance can be substituted; its connection string must be supplied through `NEXORA_E2E_DATABASE_URL` or the ignored test environment file and must not match either development or production configuration.

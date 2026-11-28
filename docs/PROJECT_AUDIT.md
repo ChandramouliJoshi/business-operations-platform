@@ -1,6 +1,6 @@
 # Nexora project audit
 
-Audit date: 2026-11-26
+Audit date: 2026-11-28
 
 ## Baseline
 
@@ -24,16 +24,25 @@ Nexora is a two-package TypeScript application. The backend is NestJS 12 with Pr
 4. `AuthContext` validates sessions through `/auth/me` and Axios clears expired sessions centrally; the current profile model remains limited to JWT claims (`userId`/email).
 5. Backend authorization is opt-in per controller and the permission guard reads `organizationId` from route params. Project/task/member/department/request/workflow/approval/analytics mutations include organization predicates; transition actors use the existing `requests.transition` permission plus optional transition role restrictions.
 6. A reviewed additive migration is now prepared under `backend/prisma/migrations`, but the repository still lacks a verified historical baseline for an existing database. It must not be deployed until staging/baseline review is complete.
-7. Domain notification/audit wiring now covers request/approval/workflow activity and analytics; a full integration run remains blocked by unavailable PostgreSQL infrastructure.
+7. Domain notification/audit wiring now covers request/approval/workflow activity and analytics; the final isolated PostgreSQL integration run passed.
 8. Environment, deployment, migration and health-check guidance is now documented, but production secret management and hosting configuration remain deployment-owner responsibilities.
 
 ## Verification baseline
 
-After this increment, both production builds pass and the backend unit suite passes 43/43 tests across 33 files, including workflow, request, approval, notification, audit, analytics, task-update and organization-tenancy behavior tests. The e2e suite discovers five suites but cannot start because the configured Supabase test database is unreachable at `aws-1-ap-southeast-2.pooler.supabase.com`; no e2e tests execute until an isolated PostgreSQL database is available. No database reset, migration, or destructive setup was performed.
+The final verification run passed against the isolated local PostgreSQL 18.6 database `localhost:5432/nexora_e2e_test`:
+
+- Backend unit tests: 43/43 passed across 33 files.
+- E2E tests: 28/28 passed across all five suites.
+- Backend production build: passed.
+- Frontend production build: passed.
+- Prisma schema validation: passed.
+- Git diff check: passed.
+
+The E2E database was isolated from Supabase, development and production databases. No database reset or production migration was performed.
 
 ## Priority
 
-The next safe increment is to establish a staging/test PostgreSQL target, baseline the existing database migration history, and run the complete integration journeys. Production readiness remains conditional until those external checks pass.
+The next safe increment is to establish and verify the historical production migration baseline, validate the prepared migration in staging, and complete browser/hosting QA. Production readiness remains conditional until those checks pass.
 
 ## Production-readiness classification
 
@@ -45,15 +54,19 @@ The next safe increment is to establish a staging/test PostgreSQL target, baseli
 - `/health` endpoint exists and checks database connectivity.
 - Additive workflow migration SQL has been prepared and reviewed for non-destructive operations.
 
-### Implemented but not integration-tested
+### Implemented and integration-tested
 
-- Complete browser journeys across registration, organization setup, project/task operations, workflow/request/approval lifecycle, notifications, audit logs and analytics.
-- Workflow activation and transition-role behavior against a migrated database.
+- Backend E2E coverage passed for application connectivity, authentication, organization setup, members, projects and tasks.
+- Workflow activation and transition-role behavior is covered by the backend unit/behavior suite; the prepared production migration remains separately gated by staging baseline review.
+
+### Not covered by this verification run
+
+- Browser QA, responsive/accessibility validation and production hosting smoke tests were not executed.
 
 ### Requires external infrastructure
 
-- E2E execution requires an isolated PostgreSQL database; the configured Supabase test host is unreachable.
 - Staging validation of the prepared migration requires a database owner and backup/snapshot.
+- Production hosting and browser validation require a deployed environment reachable by the QA browser.
 
 ### Remaining risks
 
@@ -61,9 +74,16 @@ The next safe increment is to establish a staging/test PostgreSQL target, baseli
 - Browser-level accessibility/responsive QA and production hosting smoke tests remain manual.
 - JWTs remain in sessionStorage by the established architecture; deployment should enforce HTTPS and a strict CSP while a future auth-hardening decision is evaluated.
 
+## Verification warnings recorded
+
+- Frontend production output includes a main JavaScript bundle of approximately 998 KB, above the 500 KB bundler warning threshold.
+- PostgreSQL emitted a `client.query()` concurrency deprecation warning during the verification run.
+- Node emitted a child-process `shell: true` deprecation warning.
+- Git emitted expected LF/CRLF working-tree line-ending warnings.
+
 ## Final integration verification
 
-- E2E execution was attempted on 2026-11-26 using the configured `NEXORA_E2E_DATABASE_URL` source. All five suites failed during setup while seeding permissions because `aws-1-ap-southeast-2.pooler.supabase.com` was unreachable; 0 tests executed. The Supabase database was not reset or modified.
-- Docker CLI is installed, but the Docker Desktop Linux engine is not running, and no local PostgreSQL listener is available on port 5432. A disposable PostgreSQL target must therefore be supplied externally before E2E execution can proceed.
-- Browser QA was not claimed as passed. The local Vite server was started successfully, but the available browser automation surface could not connect to the local loopback URL. Registration through logout, responsive/theme checks and console/network inspection remain pending in a browser that can reach the deployment or forwarded local URL.
+- The final E2E run completed against isolated local PostgreSQL 18.6 at `localhost:5432/nexora_e2e_test`; all five suites passed with 28/28 tests.
+- The earlier Supabase-host failure and unavailable-local-listener attempts were infrastructure-only preflight attempts and did not modify those databases.
+- Browser QA was not claimed as passed. Registration through logout, responsive/theme checks and console/network inspection remain pending in a browser that can reach the deployment or forwarded local URL.
 - Migration review confirms the prepared SQL is additive: existing workflow rows receive `is_active = true`, existing transitions remain unrestricted because `allowed_role_id` is nullable, and the foreign key references `roles(id)` without delete cascades. No historical Prisma baseline was found, so staging baseline verification remains a deployment prerequisite.

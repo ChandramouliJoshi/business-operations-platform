@@ -1,6 +1,6 @@
 # Nexora implementation roadmap
 
-Updated: 2026-11-26
+Updated: 2026-11-28
 
 Status uses `done`, `in progress`, `blocked`, or `not started`. A task is marked done only after source inspection and relevant verification.
 
@@ -81,7 +81,7 @@ Status uses `done`, `in progress`, `blocked`, or `not started`. A task is marked
 - [x] Add task-update, workflow/request/approval, notification/audit/analytics, and cross-organization/team-management behavior tests.
 - [x] Run frontend/backend production builds; both pass.
 - [x] Harden E2E configuration with `NEXORA_E2E_DATABASE_URL` override and a safe example configuration.
-- [ ] Run e2e tests against an available isolated PostgreSQL test environment; currently blocked by unreachable configured Supabase host.
+- [x] Run all five E2E suites against isolated local PostgreSQL 18.6 at `localhost:5432/nexora_e2e_test`; 28/28 tests passed.
 - [ ] Document environment variables, migrations, deployment and API usage.
 
 ## Phase 9 — production readiness (in progress)
@@ -92,10 +92,10 @@ Status uses `done`, `in progress`, `blocked`, or `not started`. A task is marked
 - [x] Add backend/frontend production environment and build instructions.
 - [ ] Establish and verify a historical Prisma migration baseline.
 - [ ] Run the prepared migration in an isolated staging database and inspect results.
-- [ ] Execute all E2E and end-to-end business journeys against isolated PostgreSQL.
+- [x] Execute all five backend E2E suites against isolated PostgreSQL; 28/28 tests passed.
 - [ ] Complete browser-level responsive, accessibility, and production hosting QA.
 
-Verification note: E2E was attempted on 2026-11-26, but all five suites stopped during setup because the configured Supabase host was unreachable; no tests ran. Docker Desktop was unavailable and no local PostgreSQL listener was present, so no substitute database was created or used.
+Final verification note: E2E ran successfully against isolated local PostgreSQL 18.6 at `localhost:5432/nexora_e2e_test`; all five suites passed with 28/28 tests. Backend unit tests passed 43/43 across 33 files, backend and frontend production builds passed, Prisma validation passed, and `git diff --check` passed. Browser QA and production hosting smoke tests remain outstanding. Recorded warnings include the approximately 998 KB frontend bundle, PostgreSQL `client.query()` concurrency deprecation, Node `shell: true` deprecation, and Git LF/CRLF notices.
 
 ## Next recommended increment
 

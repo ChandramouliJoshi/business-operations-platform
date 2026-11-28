@@ -35,6 +35,6 @@ describe('Application E2E', () => {
     >`SELECT current_database() AS database_name`;
 
     expect(result).toHaveLength(1);
-    expect(result[0].database_name).toBe('postgres');
+    expect(result[0].database_name).toBe('nexora_e2e_test');
   });
 });
